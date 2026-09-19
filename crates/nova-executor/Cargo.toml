@@ -1,0 +1,12 @@
+[package]
+name = "nova-executor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Query execution operators: scan, index scan, filter, sort, limit, CRUD"
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -1,0 +1,12 @@
+[package]
+name = "nova-wal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Write-ahead log and crash recovery for NovaDB"
+
+[dependencies]
+
+[lints]
+workspace = true

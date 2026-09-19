@@ -1,0 +1,16 @@
+[package]
+name = "nova-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "NovaDB interactive command-line interface"
+
+[[bin]]
+name = "nova"
+path = "src/main.rs"
+
+[dependencies]
+
+[lints]
+workspace = true

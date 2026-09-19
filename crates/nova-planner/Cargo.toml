@@ -1,0 +1,12 @@
+[package]
+name = "nova-planner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Query planning: deterministic plan generation, collection scan vs index scan, explain"
+
+[dependencies]
+
+[lints]
+workspace = true

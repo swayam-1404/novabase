@@ -1,0 +1,12 @@
+[package]
+name = "nova-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Single-node NovaDB server: protocol, connections, timeouts, structured errors, graceful shutdown"
+
+[dependencies]
+
+[lints]
+workspace = true

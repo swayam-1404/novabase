@@ -1,0 +1,12 @@
+[package]
+name = "nova-storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Page-based persistence: page manager, slotted pages, collections, free-space management"
+
+[dependencies]
+
+[lints]
+workspace = true

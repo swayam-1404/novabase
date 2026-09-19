@@ -1,0 +1,16 @@
+[package]
+name = "nova-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Core infrastructure shared across NovaDB: error conventions, logging, and the on-disk format version registry"
+
+[dependencies]
+getrandom.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

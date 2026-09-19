@@ -1,0 +1,12 @@
+[package]
+name = "nova-transaction"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Transactions and locking for NovaDB"
+
+[dependencies]
+
+[lints]
+workspace = true

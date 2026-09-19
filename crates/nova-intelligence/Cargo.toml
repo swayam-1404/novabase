@@ -1,0 +1,12 @@
+[package]
+name = "nova-intelligence"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Nova Intelligence Engine (NIE): workload telemetry analysis and evidence-based index recommendations"
+
+[dependencies]
+
+[lints]
+workspace = true

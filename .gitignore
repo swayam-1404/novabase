@@ -1,0 +1,18 @@
+/target
+
+# Local NovaDB data directories (created at runtime)
+/nova-data/
+*.db
+*.wal
+*.log
+
+# Editor / OS noise
+.idea/
+.vscode/
+*.swp
+*~
+Thumbs.db
+.DS_Store
+
+# Rust tooling
+Cargo.lock.orig

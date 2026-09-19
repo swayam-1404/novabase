@@ -1,0 +1,12 @@
+[package]
+name = "nova-nbf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Nova Binary Format (NBF): deterministic binary encoding/decoding of NovaDB documents"
+
+[dependencies]
+
+[lints]
+workspace = true

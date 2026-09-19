@@ -1,0 +1,11 @@
+#
+# NovaDB clippy configuration.
+#
+# The `doc_markdown` lint asks for code identifiers in backticks inside doc
+# comments. NovaDB's brand words ("NovaDB", "NovaId") and auth role names are
+# prose terms that legitimately appear un-backticked everywhere (project names,
+# human roles). They are allowlisted here; every other CamelCase / ALL_CAPS
+# token must still be backticked.
+#
+# See https://rust-lang.github.io/rust-clippy/master/index.html#/doc_markdown
+doc-valid-idents = ["NovaDB", "NovaId", "READ_ONLY", "READ_WRITE", "ADMIN"]

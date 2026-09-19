@@ -1,0 +1,126 @@
+# NovaDB
+
+NovaDB is an **experimental / research database prototype** developed as a
+4th-year B.Tech CSE final-year project. It is a Rust-based, SQL-free, document
+oriented database with its own JSON-like documents, a custom query language
+(NovaQL), a custom binary document format (NBF), page-based persistence, a
+persistent B+ tree index, WAL-based crash recovery, and the **Nova Intelligence
+Engine (NIE)** — a workload-aware index recommendation system.
+
+> **NovaDB is not production software.** It is a research prototype being built
+> incrementally, test-first, phase-by-phase.
+
+## What NovaDB is NOT
+
+- Not a wrapper around MongoDB / PostgreSQL / SQLite / RocksDB / Redis, or any
+  other database.
+- Not SQL. NovaDB speaks NovaQL and never translates it into SQL.
+- Not a distributed system. No sharding, no Raft, no multi-node replication.
+- Not production-ready, and makes no such claim.
+
+## Architecture
+
+See [`docs/architecture.md`](docs/architecture.md). In short:
+
+```
+CLI / SDK -> NovaDB Server -> Auth -> NovaQL Parser -> AST
+         -> Semantic Validator -> Query Planner
+         -> (CollectionScan | IndexScan -> B+ Tree)
+         -> Executor -> Document Engine -> NBF
+         -> Buffer Pool -> Page Manager -> (WAL | Data Pages) -> Disk
+Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
+```
+
+## Current status
+
+Implemented (Phase 0 — Environment & Workspace):
+
+- Rust workspace with 14 library crates and the `nova` CLI binary.
+- Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
+  `unsafe_code` denied workspace-wide).
+- Structured error conventions (`NovaError`) in `nova-core`.
+- `tracing`-based logging setup in `nova-core`.
+- On-disk format version registry (`MAGIC = b"NOVA"`, `FORMAT_VERSION = 1`).
+- CI workflow (format + clippy + test on Linux and Windows).
+
+Nothing database-shaped exists yet; that begins with Phase 1 (core data model:
+`NovaValue`, `Document`, `NovaId`).
+
+## Build
+
+Requires a stable Rust toolchain (see `rust-toolchain.toml`).
+
+```sh
+cargo build --workspace
+```
+
+## Run
+
+The CLI binary only prints version info until Phase 16.
+
+```sh
+cargo run -p nova-cli
+```
+
+## Testing
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace
+```
+
+Or run the cross-platform gate directly (`scripts/check.ps1` on Windows,
+`scripts/check.sh` on Linux/macOS).
+
+## Research objective
+
+> Can workload-aware index recommendations significantly reduce document scans
+> and query latency in a custom document-oriented database while maintaining
+> acceptable storage and write overhead?
+
+NovaDB does **not** claim to be faster or better than existing databases. All
+performance claims will be backed by reproducible benchmarks
+(`docs/benchmark-methodology.md`).
+
+## Project structure
+
+```
+crates/
+  nova-core          Core data model, errors, logging, format registry
+  nova-nbf           Nova Binary Format (Phase 2)
+  nova-storage       Page-based storage (Phase 3-4)
+  nova-buffer        Buffer pool (Phase 11)
+  nova-wal           WAL + recovery (Phase 12)
+  nova-index         B+ tree (Phase 8-9)
+  nova-query         NovaQL lexer/parser (Phase 5-6)
+  nova-planner       Query planner (Phase 10)
+  nova-executor      Execution operators (Phase 7)
+  nova-transaction   Transactions/locking (Phase 13)
+  nova-intelligence  NIE (Phase 17-20)
+  nova-auth          Auth/roles (Phase 15)
+  nova-server        Server (Phase 14)
+  nova-client        SDK
+cli/nova-cli         CLI (Phase 16)
+tests/               integration, recovery, corruption, concurrency, fuzz, perf
+benchmarks/          reproducible benchmarks
+datasets/            reproducible datasets
+```
+
+## Roadmap
+
+Phase 0 ✓ workspace — Phase 1 core data model — Phase 2 NBF — Phase 3 page
+storage — Phase 4 storage engine (insert/shutdown/restart/read) — Phase 5
+NovaQL lexer — Phase 6 NovaQL parser — Phase 7 query executor — Phase 8 B+
+tree — Phase 9 index integration — Phase 10 planner — Phase 11 buffer pool —
+Phase 12 WAL/recovery — Phase 13 transactions — Phase 14 server — Phase 15 auth —
+Phase 16 CLI — Phase 17 telemetry — Phase 18-20 NIE — Phase 21 optional
+AI assistant — Phase 22 hardening.
+
+Future work (out of scope for v1): SQL compatibility, distributed consensus,
+sharding, replication, full MVCC, graph engine, HNSW/ANN, LSM trees, learned
+indexes, Kubernetes operator.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
