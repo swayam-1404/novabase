@@ -53,5 +53,45 @@ find students
 | limit 10;
 ```
 
-This example describes the token vocabulary and planned grammar shape only;
-Phase 5 does not build an AST or execute a query.
+## Phase 6: AST and parser
+
+Phase 6 parses exactly one query, with an optional trailing semicolon. Any other
+trailing token is an error. `explain` may prefix a command. The supported
+commands are:
+
+```text
+find <collection>
+insert into <collection> <object>
+update <collection>
+delete from <collection>
+create collection <name>
+drop collection <name>
+create index <name> on <collection> (<path>, ...)
+drop index <name>
+```
+
+`find`, `update`, and `delete` accept pipe-separated stages:
+
+```text
+| where <expression>
+| project <path>, ...
+| sort by <path> [asc|desc], ...
+| skip <non-negative integer>
+| limit <non-negative integer>
+| set <path> = <expression>, ...
+```
+
+The `set` stage is valid only for `update`, and an update requires at least one
+`set`. Insert requires an object literal. Object keys must be identifiers or
+quoted strings and may not be duplicated. Arrays and objects allow a trailing
+comma.
+
+Expressions support paths, scalar/array/object literals, parentheses, unary
+`not`/`!`/`-`/`+`, and left-associative binary operators. From lowest to highest
+precedence, the binary groups are `or`; `and`; comparisons; `+`/`-`; and
+`*`/`/`/`%`.
+
+The parser produces a public, strongly typed AST with spans on queries,
+expressions, paths, and object fields. Lexical errors remain distinguishable
+from parse errors through `QueryError`. Phase 6 does not execute or plan the
+AST; that begins in Phase 7.

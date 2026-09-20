@@ -15,6 +15,23 @@ impl Span {
     pub const fn new(start: usize, end: usize) -> Self {
         Self { start, end }
     }
+
+    /// Returns the smallest span containing both inputs.
+    #[must_use]
+    pub const fn join(self, other: Self) -> Self {
+        Self {
+            start: if self.start < other.start {
+                self.start
+            } else {
+                other.start
+            },
+            end: if self.end > other.end {
+                self.end
+            } else {
+                other.end
+            },
+        }
+    }
 }
 
 /// Reserved `NovaQL` words. Keyword matching is ASCII case-insensitive.
