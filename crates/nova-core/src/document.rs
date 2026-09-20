@@ -100,7 +100,6 @@ impl Document {
     }
 
     /// Iterates fields in sorted key order.
-    #[must_use]
     pub fn iter(&self) -> impl Iterator<Item = (&str, &NovaValue)> {
         self.fields.iter().map(|(k, v)| (k.as_str(), v))
     }

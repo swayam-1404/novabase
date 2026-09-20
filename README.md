@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented (Phase 0 — Environment & Workspace):
+Implemented (Phase 1 — Core data model):
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -42,9 +42,13 @@ Implemented (Phase 0 — Environment & Workspace):
 - `tracing`-based logging setup in `nova-core`.
 - On-disk format version registry (`MAGIC = b"NOVA"`, `FORMAT_VERSION = 1`).
 - CI workflow (format + clippy + test on Linux and Windows).
+- Core data model in `nova-core`: `NovaId` (128-bit time+random identifier),
+  `NovaTimestamp` (millisecond-precision timestamps), `NovaValue` (typed
+  scalar/collection values), and `Document` (typed field map keyed by sorted
+  fields, always carrying an implicit `_id`).
 
-Nothing database-shaped exists yet; that begins with Phase 1 (core data model:
-`NovaValue`, `Document`, `NovaId`).
+Phase 0 (environment & workspace) shipped the scaffolding above; Phase 1
+shipped the data model. Next: Phase 2 (NBF binary format in `nova-nbf`).
 
 ## Build
 

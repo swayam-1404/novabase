@@ -86,7 +86,7 @@ Nova Intelligence Engine (nova-intelligence)
 | Component                | Crate              | Status   | Phase |
 |--------------------------|--------------------|----------|-------|
 | Errors, logging, version | nova-core          | shipped  | 0     |
-| Data model               | nova-core          | planned  | 1     |
+| Data model               | nova-core          | shipped  | 1     |
 | NBF                      | nova-nbf           | planned  | 2     |
 | Pages                    | nova-storage       | planned  | 3     |
 | Storage engine           | nova-storage       | planned  | 4     |
