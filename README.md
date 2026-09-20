@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 6 — NovaQL parser:
+Implemented through Phase 7 — query executor:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -61,11 +61,15 @@ Implemented through Phase 6 — NovaQL parser:
 - A strongly typed, source-spanned NovaQL AST and precedence-aware parser for
   document commands, collection/index DDL, pipeline stages, expressions, and
   nested document/array literals.
+- A deterministic collection-scan executor with CRUD, collection DDL,
+  filtering, projection, stable multi-key sorting, skip/limit, nested updates,
+  checked expression evaluation, and an explicit backend boundary.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
 persistent document path. Phase 5 shipped lexical analysis, and Phase 6 shipped
-the AST and parser. Next: Phase 7 (query execution in `nova-executor`).
+the AST and parser. Phase 7 shipped collection-scan query execution. Next:
+Phase 8 (the persistent B+ tree in `nova-index`).
 
 ## Build
 
@@ -132,10 +136,10 @@ datasets/            reproducible datasets
 
 Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 ✓ NBF — Phase 3 ✓ page
 storage — Phase 4 ✓ storage engine (insert/shutdown/restart/read) —
-Phase 5 ✓ NovaQL lexer — Phase 6 ✓ NovaQL parser — Phase 7 query executor —
+Phase 5 ✓ NovaQL lexer — Phase 6 ✓ NovaQL parser — Phase 7 ✓ query executor —
 Phase 8 B+ tree — Phase 9 index integration — Phase 10 planner — Phase 11 buffer
-pool —
-Phase 12 WAL/recovery — Phase 13 transactions — Phase 14 server — Phase 15 auth —
+pool — Phase 12 WAL/recovery — Phase 13 transactions — Phase 14 server —
+Phase 15 auth —
 Phase 16 CLI — Phase 17 telemetry — Phase 18-20 NIE — Phase 21 optional
 AI assistant — Phase 22 hardening.
 

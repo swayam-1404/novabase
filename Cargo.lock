@@ -85,6 +85,10 @@ dependencies = [
 [[package]]
 name = "nova-executor"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+ "nova-query",
+]
 
 [[package]]
 name = "nova-index"

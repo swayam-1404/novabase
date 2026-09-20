@@ -7,6 +7,8 @@ rust-version.workspace = true
 description = "Query execution operators: scan, index scan, filter, sort, limit, CRUD"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
+nova-query = { path = "../nova-query", version = "0.1.0" }
 
 [lints]
 workspace = true

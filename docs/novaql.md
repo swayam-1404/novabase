@@ -95,3 +95,14 @@ The parser produces a public, strongly typed AST with spans on queries,
 expressions, paths, and object fields. Lexical errors remain distinguishable
 from parse errors through `QueryError`. Phase 6 does not execute or plan the
 AST; that begins in Phase 7.
+
+## Phase 7: execution
+
+Phase 7 executes collection commands and pipelines through an
+`ExecutionBackend`. Stages run left to right, expression evaluation has no
+implicit type coercion, integer arithmetic is checked, boolean operators
+short-circuit, and missing paths remain distinct from null. See
+[`query-execution.md`](query-execution.md) for the complete runtime contract.
+
+Index commands remain unsupported until Phases 8–9, and `explain` remains
+unsupported until the Phase 10 planner.

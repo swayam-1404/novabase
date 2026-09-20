@@ -1,10 +1,13 @@
-//! Query executor.
+//! Collection-scan execution for parsed `NovaQL` queries.
 //!
-//! Stream-oriented operators (`CollectionScan`, `IndexScan`, `Filter`, `Sort`,
-//! `Limit`) working page -> record -> decode -> predicate -> result, with early
-//! termination support for `.limit N`.
-//!
-//! Implemented in a later phase (see `docs/architecture.md`). This file locks in
-//! the crate as an architectural unit so the workspace builds from Phase 0.
+//! Phase 7 evaluates expressions and pipeline operators against a backend
+//! abstraction. Index scans and planning are added in later roadmap phases.
 
 #![forbid(unsafe_code)]
+
+mod backend;
+mod evaluate;
+mod executor;
+
+pub use backend::{ExecutionBackend, MemoryBackend};
+pub use executor::{execute, ExecutionResult};
