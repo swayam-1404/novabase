@@ -97,6 +97,9 @@ version = "0.1.0"
 [[package]]
 name = "nova-nbf"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+]
 
 [[package]]
 name = "nova-planner"

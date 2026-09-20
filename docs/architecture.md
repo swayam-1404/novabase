@@ -87,7 +87,7 @@ Nova Intelligence Engine (nova-intelligence)
 |--------------------------|--------------------|----------|-------|
 | Errors, logging, version | nova-core          | shipped  | 0     |
 | Data model               | nova-core          | shipped  | 1     |
-| NBF                      | nova-nbf           | planned  | 2     |
+| NBF                      | nova-nbf           | shipped  | 2     |
 | Pages                    | nova-storage       | planned  | 3     |
 | Storage engine           | nova-storage       | planned  | 4     |
 | NovaQL lexer             | nova-query         | planned  | 5     |
