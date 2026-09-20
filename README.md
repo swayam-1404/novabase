@@ -113,7 +113,7 @@ datasets/            reproducible datasets
 
 ## Roadmap
 
-Phase 0 ✓ workspace — Phase 1 core data model — Phase 2 NBF — Phase 3 page
+Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 NBF — Phase 3 page
 storage — Phase 4 storage engine (insert/shutdown/restart/read) — Phase 5
 NovaQL lexer — Phase 6 NovaQL parser — Phase 7 query executor — Phase 8 B+
 tree — Phase 9 index integration — Phase 10 planner — Phase 11 buffer pool —
