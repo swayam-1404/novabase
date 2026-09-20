@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 4 — persistent document storage:
+Implemented through Phase 5 — NovaQL lexer:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -55,10 +55,14 @@ Implemented through Phase 4 — persistent document storage:
 - An end-to-end storage engine that NBF-encodes documents, places them across
   data pages, rejects duplicate ids, rebuilds its lookup directory on open,
   and preserves documents across explicit shutdown/restart.
+- A total, UTF-8-aware NovaQL lexer with typed literals and keywords,
+  JSON-compatible string escapes, comments, operators, exact source spans, and
+  typed errors for malformed input.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
-persistent document path. Next: Phase 5 (NovaQL lexer in `nova-query`).
+persistent document path. Phase 5 shipped lexical analysis. Next: Phase 6 (the
+NovaQL AST and parser in `nova-query`).
 
 ## Build
 
@@ -124,8 +128,8 @@ datasets/            reproducible datasets
 ## Roadmap
 
 Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 ✓ NBF — Phase 3 ✓ page
-storage — Phase 4 ✓ storage engine (insert/shutdown/restart/read) — Phase 5
-NovaQL lexer — Phase 6 NovaQL parser — Phase 7 query executor — Phase 8 B+
+storage — Phase 4 ✓ storage engine (insert/shutdown/restart/read) —
+Phase 5 ✓ NovaQL lexer — Phase 6 NovaQL parser — Phase 7 query executor — Phase 8 B+
 tree — Phase 9 index integration — Phase 10 planner — Phase 11 buffer pool —
 Phase 12 WAL/recovery — Phase 13 transactions — Phase 14 server — Phase 15 auth —
 Phase 16 CLI — Phase 17 telemetry — Phase 18-20 NIE — Phase 21 optional

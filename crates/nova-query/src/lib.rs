@@ -1,9 +1,10 @@
 //! `NovaQL` front end.
 //!
-//! Typed tokens, a strongly typed AST, precise error reporting with source
-//! spans, and a semantic validator. Parser and executor stay independent.
-//!
-//! Implemented in later phases (see `docs/architecture.md`). This file locks in
-//! the crate as an architectural unit so the workspace builds from Phase 0.
+//! Phase 5 provides a total, span-aware lexer. The AST, parser, and semantic
+//! validator are introduced in subsequent roadmap phases.
 
 #![forbid(unsafe_code)]
+
+mod lexer;
+
+pub use lexer::{lex, Keyword, LexError, LexErrorKind, Span, Token, TokenKind};
