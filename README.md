@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 3 — page-based storage:
+Implemented through Phase 4 — persistent document storage:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -52,10 +52,13 @@ Implemented through Phase 3 — page-based storage:
 - Fixed-size checksummed slotted pages in `nova-storage`, with stable reusable
   slot identifiers, payload compaction, corruption validation, and direct
   allocate/read/write/sync page-file operations.
+- An end-to-end storage engine that NBF-encodes documents, places them across
+  data pages, rejects duplicate ids, rebuilds its lookup directory on open,
+  and preserves documents across explicit shutdown/restart.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
-Phase 2 shipped NBF. Phase 3 shipped page storage. Next: Phase 4 (the document
-storage engine with insert/shutdown/restart/read persistence).
+Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
+persistent document path. Next: Phase 5 (NovaQL lexer in `nova-query`).
 
 ## Build
 
@@ -121,7 +124,7 @@ datasets/            reproducible datasets
 ## Roadmap
 
 Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 ✓ NBF — Phase 3 ✓ page
-storage — Phase 4 storage engine (insert/shutdown/restart/read) — Phase 5
+storage — Phase 4 ✓ storage engine (insert/shutdown/restart/read) — Phase 5
 NovaQL lexer — Phase 6 NovaQL parser — Phase 7 query executor — Phase 8 B+
 tree — Phase 9 index integration — Phase 10 planner — Phase 11 buffer pool —
 Phase 12 WAL/recovery — Phase 13 transactions — Phase 14 server — Phase 15 auth —

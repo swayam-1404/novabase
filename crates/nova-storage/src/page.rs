@@ -107,6 +107,14 @@ impl Page {
             .and_then(Option::as_deref)
     }
 
+    /// Iterates live records in ascending stable slot order.
+    pub fn records(&self) -> impl Iterator<Item = (SlotId, &[u8])> {
+        self.slots.iter().enumerate().filter_map(|(index, slot)| {
+            let id = u16::try_from(index).ok().map(SlotId::new)?;
+            slot.as_deref().map(|record| (id, record))
+        })
+    }
+
     /// Returns the number of bytes currently available for a new record.
     ///
     /// A deleted slot is reused first and therefore does not consume another

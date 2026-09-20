@@ -118,6 +118,7 @@ name = "nova-storage"
 version = "0.1.0"
 dependencies = [
  "nova-core",
+ "nova-nbf",
 ]
 
 [[package]]

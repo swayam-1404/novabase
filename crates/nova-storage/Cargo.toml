@@ -8,6 +8,7 @@ description = "Page-based persistence: page manager, slotted pages, collections,
 
 [dependencies]
 nova-core = { path = "../nova-core", version = "0.1.0" }
+nova-nbf = { path = "../nova-nbf", version = "0.1.0" }
 
 [lints]
 workspace = true

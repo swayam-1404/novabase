@@ -7,9 +7,11 @@
 #![forbid(unsafe_code)]
 
 mod checksum;
+mod engine;
 mod manager;
 mod page;
 
+pub use engine::StorageEngine;
 pub use manager::PageManager;
 pub use page::{
     Page, PageId, SlotId, PAGE_FORMAT_VERSION, PAGE_HEADER_SIZE, PAGE_MAGIC, PAGE_SIZE,
