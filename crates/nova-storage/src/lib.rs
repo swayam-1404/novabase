@@ -1,9 +1,16 @@
-//! Page-based storage engine.
+//! Page-based persistence primitives for NovaDB.
 //!
-//! Slotted pages, page read/write, checksums, free-space management, collections
-//! and database metadata. Documents are stored as `NBF` bytes inside pages.
-//!
-//! Implemented in later phases (see `docs/architecture.md`). This file locks in
-//! the crate as an architectural unit so the workspace builds from Phase 0.
+//! Phase 3 provides checksummed fixed-size slotted pages and direct page-file
+//! I/O. The higher-level document storage engine is layered on these primitives
+//! in Phase 4.
 
 #![forbid(unsafe_code)]
+
+mod checksum;
+mod manager;
+mod page;
+
+pub use manager::PageManager;
+pub use page::{
+    Page, PageId, SlotId, PAGE_FORMAT_VERSION, PAGE_HEADER_SIZE, PAGE_MAGIC, PAGE_SIZE,
+};

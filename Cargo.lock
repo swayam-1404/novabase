@@ -116,6 +116,9 @@ version = "0.1.0"
 [[package]]
 name = "nova-storage"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+]
 
 [[package]]
 name = "nova-transaction"

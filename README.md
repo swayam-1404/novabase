@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 2 — NBF binary format:
+Implemented through Phase 3 — page-based storage:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -49,9 +49,13 @@ Implemented through Phase 2 — NBF binary format:
 - Deterministic NBF v1 encoding and bounds-checked decoding in `nova-nbf`, with
   minimal unsigned LEB128 lengths/counts, typed malformed-input errors, a
   nesting limit, canonical NaN encoding, and complete round-trip tests.
+- Fixed-size checksummed slotted pages in `nova-storage`, with stable reusable
+  slot identifiers, payload compaction, corruption validation, and direct
+  allocate/read/write/sync page-file operations.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
-Phase 2 shipped NBF. Next: Phase 3 (page-based storage in `nova-storage`).
+Phase 2 shipped NBF. Phase 3 shipped page storage. Next: Phase 4 (the document
+storage engine with insert/shutdown/restart/read persistence).
 
 ## Build
 
@@ -116,7 +120,7 @@ datasets/            reproducible datasets
 
 ## Roadmap
 
-Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 ✓ NBF — Phase 3 page
+Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 ✓ NBF — Phase 3 ✓ page
 storage — Phase 4 storage engine (insert/shutdown/restart/read) — Phase 5
 NovaQL lexer — Phase 6 NovaQL parser — Phase 7 query executor — Phase 8 B+
 tree — Phase 9 index integration — Phase 10 planner — Phase 11 buffer pool —

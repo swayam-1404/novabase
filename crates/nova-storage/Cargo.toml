@@ -7,6 +7,7 @@ rust-version.workspace = true
 description = "Page-based persistence: page manager, slotted pages, collections, free-space management"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
 
 [lints]
 workspace = true
