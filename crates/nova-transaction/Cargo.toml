@@ -7,6 +7,8 @@ rust-version.workspace = true
 description = "Transactions and locking for NovaDB"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
+nova-wal = { path = "../nova-wal", version = "0.1.0" }
 
 [lints]
 workspace = true

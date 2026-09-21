@@ -98,7 +98,7 @@ Nova Intelligence Engine (nova-intelligence)
 | Planner                  | nova-planner       | shipped  | 10    |
 | Buffer pool              | nova-buffer        | shipped  | 11    |
 | WAL / recovery           | nova-wal           | shipped  | 12    |
-| Transactions             | nova-transaction   | planned  | 13    |
+| Transactions             | nova-transaction   | shipped  | 13    |
 | Server                   | nova-server        | planned  | 14    |
 | Auth                     | nova-auth          | planned  | 15    |
 | CLI                      | nova-cli           | planned  | 16    |

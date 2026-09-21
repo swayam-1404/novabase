@@ -141,6 +141,10 @@ dependencies = [
 [[package]]
 name = "nova-transaction"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+ "nova-wal",
+]
 
 [[package]]
 name = "nova-wal"
