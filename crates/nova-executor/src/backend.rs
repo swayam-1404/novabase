@@ -56,6 +56,29 @@ pub trait ExecutionBackend {
     /// Returns a typed backend error if the collection is missing or removal
     /// fails.
     fn drop_collection(&mut self, name: &str) -> Result<()>;
+
+    /// Creates and backfills a single-field index.
+    ///
+    /// # Errors
+    ///
+    /// The default returns [`NovaError::Unsupported`]. Index-capable backends
+    /// return typed catalog, value, or persistence errors.
+    fn create_index(&mut self, _name: &str, _collection: &str, _field: &[String]) -> Result<()> {
+        Err(NovaError::Unsupported(
+            "backend does not provide persistent indexes".to_owned(),
+        ))
+    }
+
+    /// Drops a named index.
+    ///
+    /// # Errors
+    ///
+    /// The default returns [`NovaError::Unsupported`].
+    fn drop_index(&mut self, _name: &str) -> Result<()> {
+        Err(NovaError::Unsupported(
+            "backend does not provide persistent indexes".to_owned(),
+        ))
+    }
 }
 
 /// Deterministic in-memory backend for embedding and executor verification.

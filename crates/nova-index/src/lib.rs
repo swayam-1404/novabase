@@ -5,6 +5,8 @@
 
 #![forbid(unsafe_code)]
 
+mod catalog;
+
 use std::cmp::Ordering;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -12,6 +14,8 @@ use std::path::{Path, PathBuf};
 
 use nova_core::error::{NovaError, Result};
 use nova_core::{NovaId, NovaValue};
+
+pub use catalog::{IndexCatalog, IndexDefinition};
 
 const MAGIC: &[u8; 4] = b"NVIX";
 const VERSION: u16 = 1;
@@ -938,9 +942,8 @@ mod tests {
             fs::read(&file.0).unwrap()
         };
         for length in 0..valid.len() {
-            fs::write(&file.0, &valid[..length]).unwrap();
-            let result = catch_unwind(AssertUnwindSafe(|| BPlusTree::open(&file.0)));
-            assert!(result.is_ok(), "open panicked at length {length}");
+            let result = catch_unwind(AssertUnwindSafe(|| decode_tree(&valid[..length])));
+            assert!(result.is_ok(), "decode panicked at length {length}");
             assert!(result.unwrap().is_err(), "truncation {length} was accepted");
         }
         let mut corrupted = valid;

@@ -94,7 +94,7 @@ Nova Intelligence Engine (nova-intelligence)
 | NovaQL parser            | nova-query         | shipped  | 6     |
 | Executor                 | nova-executor      | shipped  | 7     |
 | B+ tree                  | nova-index         | shipped  | 8     |
-| Index integration        | nova-index         | planned  | 9     |
+| Index integration        | nova-index         | shipped  | 9     |
 | Planner                  | nova-planner       | planned  | 10    |
 | Buffer pool              | nova-buffer        | planned  | 11    |
 | WAL / recovery           | nova-wal           | planned  | 12    |

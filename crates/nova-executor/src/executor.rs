@@ -26,6 +26,10 @@ pub enum ExecutionResult {
     CollectionCreated(String),
     /// Collection dropped by the command.
     CollectionDropped(String),
+    /// Index created and backfilled by the command.
+    IndexCreated(String),
+    /// Index dropped by the command.
+    IndexDropped(String),
 }
 
 /// Executes a parsed query against a collection backend.
@@ -97,9 +101,23 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
             backend.drop_collection(name)?;
             Ok(ExecutionResult::CollectionDropped(name.clone()))
         }
-        Command::CreateIndex { .. } | Command::DropIndex { .. } => Err(NovaError::Unsupported(
-            "index commands are introduced in Phases 8 and 9".to_owned(),
-        )),
+        Command::CreateIndex {
+            name,
+            collection,
+            fields,
+        } => {
+            let [field] = fields.as_slice() else {
+                return Err(NovaError::Unsupported(
+                    "composite index keys are not defined in index format v1".to_owned(),
+                ));
+            };
+            backend.create_index(name, collection, &field.segments)?;
+            Ok(ExecutionResult::IndexCreated(name.clone()))
+        }
+        Command::DropIndex { name } => {
+            backend.drop_index(name)?;
+            Ok(ExecutionResult::IndexDropped(name.clone()))
+        }
     }
 }
 
@@ -308,7 +326,11 @@ fn invalid(message: impl Into<String>) -> NovaError {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+
     use nova_core::nova_timestamp::NovaTimestamp;
+    use nova_index::IndexKey;
     use nova_query::parse;
 
     use super::*;
@@ -342,7 +364,10 @@ mod tests {
         document
     }
 
-    fn execute_source(source: &str, backend: &mut MemoryBackend) -> Result<ExecutionResult> {
+    fn execute_source(
+        source: &str,
+        backend: &mut impl ExecutionBackend,
+    ) -> Result<ExecutionResult> {
         execute(&parse(source).unwrap(), backend)
     }
 
@@ -489,6 +514,67 @@ mod tests {
             execute_source("create index by_score on students (score)", &mut backend),
             Err(NovaError::Unsupported(_))
         ));
+    }
+
+    #[test]
+    fn indexed_backend_executes_ddl_backfill_and_crud_maintenance() {
+        static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+        let sequence = NEXT_DIRECTORY.fetch_add(1, AtomicOrdering::Relaxed);
+        let directory = std::env::temp_dir().join(format!(
+            "novadb-executor-index-{}-{sequence}",
+            std::process::id()
+        ));
+        let mut backend = crate::IndexedBackend::open(seeded_backend(), &directory).unwrap();
+        assert_eq!(
+            execute_source("create index by_score on students (score)", &mut backend).unwrap(),
+            ExecutionResult::IndexCreated("by_score".to_owned())
+        );
+        assert_eq!(
+            backend
+                .indexes()
+                .lookup("by_score", &IndexKey::Int64(91))
+                .unwrap(),
+            vec![id(1)]
+        );
+        assert_eq!(
+            execute_source(
+                "students.update { name == \"Ada\" } | set score = 99",
+                &mut backend
+            )
+            .unwrap(),
+            ExecutionResult::Updated(1)
+        );
+        assert!(backend
+            .indexes()
+            .lookup("by_score", &IndexKey::Int64(91))
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            backend
+                .indexes()
+                .lookup("by_score", &IndexKey::Int64(99))
+                .unwrap(),
+            vec![id(1)]
+        );
+        execute_source("students.delete { name == \"Ada\" }", &mut backend).unwrap();
+        assert!(backend
+            .indexes()
+            .lookup("by_score", &IndexKey::Int64(99))
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            execute_source("drop index by_score", &mut backend).unwrap(),
+            ExecutionResult::IndexDropped("by_score".to_owned())
+        );
+        assert!(matches!(
+            execute_source(
+                "create index composite on students (score, name)",
+                &mut backend
+            ),
+            Err(NovaError::Unsupported(_))
+        ));
+        drop(backend);
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

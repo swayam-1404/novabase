@@ -65,3 +65,23 @@ root and child references, cycles, reachability, capacities, strict key/id
 ordering, separator bounds, equal leaf depth, and complete ordered leaf links.
 Malformed input returns a typed `NovaError` and never panics. Unknown format
 versions return `NovaError::Unsupported`.
+
+## Index catalog metadata (Phase 9)
+
+Each named index has a sibling `<name>.meta` file. It contains ASCII magic
+`NVIM`, a big-endian `u16` version (`1`), length-prefixed UTF-8 index and
+collection names, a segment count, each length-prefixed field-path segment,
+and a trailing CRC-32/ISO-HDLC checksum over all preceding bytes.
+
+Catalog open validates every metadata file and its corresponding tree before
+making the catalog available. Index creation validates all existing documents,
+backfills the tree, synchronizes it, then persists metadata. Missing and null
+fields are omitted. Arrays, documents, booleans, and timestamps are rejected
+as unindexable rather than coerced.
+
+Format v1 defines one field path per index. NovaQL parses multi-field index DDL
+for forward compatibility, but execution returns `NovaError::Unsupported`
+until a composite-key byte ordering is specified. CRUD maintenance validates
+values before the backend mutation and then synchronizes affected trees.
+Atomic coordination of data, metadata, and index writes requires the WAL and
+transaction phases; Phase 9 does not claim crash atomicity.

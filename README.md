@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 8 — persistent B+ tree:
+Implemented through Phase 9 — index integration:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -69,13 +69,17 @@ Implemented through Phase 8 — persistent B+ tree:
   string, and NovaId keys; duplicate-key document ids; exact and inclusive
   range lookup; recursive leaf/internal/root splits; linked leaves; structural
   verification; and a checksummed, versioned snapshot format.
+- A persistent index catalog with named single-field definitions, collection
+  backfill, nested-path extraction, exact lookup, reopen/drop lifecycle, and an
+  `IndexedBackend` decorator that maintains entries across NovaQL insert,
+  update, delete, collection drop, and index DDL operations.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
 persistent document path. Phase 5 shipped lexical analysis, Phase 6 shipped the
 AST and parser, and Phase 7 shipped collection-scan query execution. Phase 8
-shipped the persistent B+ tree. Next: Phase 9 (index lifecycle and document
-engine integration).
+shipped the persistent B+ tree, and Phase 9 integrated index lifecycle with
+query execution. Next: Phase 10 (semantic planning and index-scan selection).
 
 ## Build
 
@@ -143,7 +147,7 @@ datasets/            reproducible datasets
 Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 ✓ NBF — Phase 3 ✓ page
 storage — Phase 4 ✓ storage engine (insert/shutdown/restart/read) —
 Phase 5 ✓ NovaQL lexer — Phase 6 ✓ NovaQL parser — Phase 7 ✓ query executor —
-Phase 8 ✓ B+ tree — Phase 9 index integration — Phase 10 planner — Phase 11 buffer
+Phase 8 ✓ B+ tree — Phase 9 ✓ index integration — Phase 10 planner — Phase 11 buffer
 pool — Phase 12 WAL/recovery — Phase 13 transactions — Phase 14 server —
 Phase 15 auth —
 Phase 16 CLI — Phase 17 telemetry — Phase 18-20 NIE — Phase 21 optional

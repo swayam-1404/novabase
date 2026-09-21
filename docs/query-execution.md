@@ -1,4 +1,4 @@
-# Query Execution (Phase 7)
+# Query Execution (Phases 7–9)
 
 Phase 7 executes the typed NovaQL AST using deterministic collection scans.
 The executor depends on the `ExecutionBackend` trait, which separates query
@@ -16,8 +16,12 @@ semantics from the later server/catalog persistence design. A deterministic
 - `delete` scans and selects documents, then deletes them by id.
 - Collection creation and removal delegate to the backend.
 
-Index commands return `NovaError::Unsupported` until Phases 8–9. `explain`
-returns `Unsupported` until the Phase 10 planner produces execution plans.
+When a backend is wrapped by `IndexedBackend`, `create index` backfills and
+persists a named single-field index and `drop index` removes it. Inserts,
+updates, deletes, and collection drops maintain the catalog. A backend without
+that capability returns `NovaError::Unsupported`; composite index execution is
+also explicitly unsupported in index format v1. `explain` returns
+`Unsupported` until the Phase 10 planner produces execution plans.
 
 ## Pipeline operators
 

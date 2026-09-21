@@ -87,6 +87,7 @@ name = "nova-executor"
 version = "0.1.0"
 dependencies = [
  "nova-core",
+ "nova-index",
  "nova-query",
 ]
 
