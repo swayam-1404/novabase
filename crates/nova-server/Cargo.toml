@@ -7,6 +7,9 @@ rust-version.workspace = true
 description = "Single-node NovaDB server: protocol, connections, timeouts, structured errors, graceful shutdown"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
+nova-executor = { path = "../nova-executor", version = "0.1.0" }
+nova-query = { path = "../nova-query", version = "0.1.0" }
 
 [lints]
 workspace = true

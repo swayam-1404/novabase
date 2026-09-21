@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 13 — transactions and locking:
+Implemented through Phase 14 — server and wire protocol:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -85,6 +85,10 @@ Implemented through Phase 13 — transactions and locking:
 - A thread-safe transaction coordinator with WAL-backed begin/commit/rollback,
   durable terminal states, strict collection-level shared/exclusive locks,
   lock upgrade, fail-fast conflict reporting, and lock release at completion.
+- A single-node TCP server with a checksummed versioned NovaDB protocol,
+  request-id correlation, bounded payloads/connections, socket deadlines,
+  structured protocol/parse/execution/busy/internal errors, concurrent workers,
+  shared backend serialization, and graceful shutdown with worker joins.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
@@ -93,8 +97,9 @@ AST and parser, and Phase 7 shipped collection-scan query execution. Phase 8
 shipped the persistent B+ tree, Phase 9 integrated index lifecycle, and Phase
 10 shipped plan construction and index-scan selection. Phase 11 shipped the
 bounded page buffer, and Phase 12 shipped write-ahead logging and startup redo.
-Phase 13 shipped transaction states and strict locking. Next: Phase 14 (server
-protocol and request handling).
+Phase 13 shipped transaction states and strict locking, and Phase 14 shipped
+the server protocol and request runtime. Next: Phase 15 (authentication and
+roles).
 
 ## Build
 
@@ -163,7 +168,7 @@ Phase 0 ✓ workspace — Phase 1 ✓ core data model — Phase 2 ✓ NBF — Ph
 storage — Phase 4 ✓ storage engine (insert/shutdown/restart/read) —
 Phase 5 ✓ NovaQL lexer — Phase 6 ✓ NovaQL parser — Phase 7 ✓ query executor —
 Phase 8 ✓ B+ tree — Phase 9 ✓ index integration — Phase 10 ✓ planner — Phase 11 ✓ buffer
-pool — Phase 12 ✓ WAL/recovery — Phase 13 ✓ transactions — Phase 14 server —
+pool — Phase 12 ✓ WAL/recovery — Phase 13 ✓ transactions — Phase 14 ✓ server —
 Phase 15 auth —
 Phase 16 CLI — Phase 17 telemetry — Phase 18-20 NIE — Phase 21 optional
 AI assistant — Phase 22 hardening.

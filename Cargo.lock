@@ -129,6 +129,11 @@ version = "0.1.0"
 [[package]]
 name = "nova-server"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+ "nova-executor",
+ "nova-query",
+]
 
 [[package]]
 name = "nova-storage"
