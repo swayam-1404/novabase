@@ -7,6 +7,8 @@ rust-version.workspace = true
 description = "Query planning: deterministic plan generation, collection scan vs index scan, explain"
 
 [dependencies]
+nova-index = { path = "../nova-index", version = "0.1.0" }
+nova-query = { path = "../nova-query", version = "0.1.0" }
 
 [lints]
 workspace = true

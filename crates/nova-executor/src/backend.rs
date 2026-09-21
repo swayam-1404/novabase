@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use nova_core::document::Document;
 use nova_core::error::{NovaError, Result};
 use nova_core::nova_id::NovaId;
+use nova_index::{IndexDefinition, IndexKey};
 
 /// Storage operations required by the Phase 7 query executor.
 ///
@@ -77,6 +78,28 @@ pub trait ExecutionBackend {
     fn drop_index(&mut self, _name: &str) -> Result<()> {
         Err(NovaError::Unsupported(
             "backend does not provide persistent indexes".to_owned(),
+        ))
+    }
+
+    /// Returns index definitions visible to the planner.
+    #[must_use]
+    fn index_definitions(&self) -> Vec<IndexDefinition> {
+        Vec::new()
+    }
+
+    /// Reads candidate documents for one exact index key.
+    ///
+    /// # Errors
+    ///
+    /// The default returns [`NovaError::Unsupported`].
+    fn scan_index(
+        &mut self,
+        _collection: &str,
+        _index: &str,
+        _key: &IndexKey,
+    ) -> Result<Vec<Document>> {
+        Err(NovaError::Unsupported(
+            "backend does not provide index scans".to_owned(),
         ))
     }
 }

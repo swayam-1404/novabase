@@ -2,7 +2,7 @@ use std::path::Path;
 
 use nova_core::error::{NovaError, Result};
 use nova_core::{Document, NovaId};
-use nova_index::IndexCatalog;
+use nova_index::{IndexCatalog, IndexDefinition, IndexKey};
 
 use crate::ExecutionBackend;
 
@@ -87,6 +87,26 @@ impl<B: ExecutionBackend> ExecutionBackend for IndexedBackend<B> {
 
     fn drop_index(&mut self, name: &str) -> Result<()> {
         self.indexes.drop_index(name)
+    }
+
+    fn index_definitions(&self) -> Vec<IndexDefinition> {
+        self.indexes.definitions()
+    }
+
+    fn scan_index(
+        &mut self,
+        collection: &str,
+        index: &str,
+        key: &IndexKey,
+    ) -> Result<Vec<Document>> {
+        let ids: std::collections::BTreeSet<NovaId> =
+            self.indexes.lookup(index, key)?.into_iter().collect();
+        Ok(self
+            .inner
+            .scan(collection)?
+            .into_iter()
+            .filter(|document| ids.contains(&document.id()))
+            .collect())
     }
 }
 

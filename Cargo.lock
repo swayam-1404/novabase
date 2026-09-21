@@ -88,6 +88,7 @@ version = "0.1.0"
 dependencies = [
  "nova-core",
  "nova-index",
+ "nova-planner",
  "nova-query",
 ]
 
@@ -112,6 +113,10 @@ dependencies = [
 [[package]]
 name = "nova-planner"
 version = "0.1.0"
+dependencies = [
+ "nova-index",
+ "nova-query",
+]
 
 [[package]]
 name = "nova-query"

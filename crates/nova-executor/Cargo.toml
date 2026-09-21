@@ -9,6 +9,7 @@ description = "Query execution operators: scan, index scan, filter, sort, limit,
 [dependencies]
 nova-core = { path = "../nova-core", version = "0.1.0" }
 nova-index = { path = "../nova-index", version = "0.1.0" }
+nova-planner = { path = "../nova-planner", version = "0.1.0" }
 nova-query = { path = "../nova-query", version = "0.1.0" }
 
 [lints]

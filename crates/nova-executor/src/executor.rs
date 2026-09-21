@@ -4,6 +4,7 @@ use nova_core::document::Document;
 use nova_core::error::{NovaError, Result};
 use nova_core::nova_id::NovaId;
 use nova_core::nova_value::NovaValue;
+use nova_planner::{plan, AccessPath, QueryPlan};
 use nova_query::{Assignment, Command, ExpressionKind, Path, Query, SortDirection, SortKey, Stage};
 
 use crate::backend::ExecutionBackend;
@@ -30,6 +31,8 @@ pub enum ExecutionResult {
     IndexCreated(String),
     /// Index dropped by the command.
     IndexDropped(String),
+    /// Stable physical plan description produced by `explain`.
+    Explained(String),
 }
 
 /// Executes a parsed query against a collection backend.
@@ -44,16 +47,18 @@ pub enum ExecutionResult {
 /// runtime types, arithmetic, unsupported stage/command combinations, or
 /// attempts to store a missing value.
 pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<ExecutionResult> {
+    let physical_plan = plan(query, &backend.index_definitions());
     if query.explain {
-        return Err(NovaError::Unsupported(
-            "query plans are introduced in Phase 10".to_owned(),
-        ));
+        return Ok(ExecutionResult::Explained(physical_plan.to_string()));
     }
 
     match &query.command {
         Command::Get { collection } => {
             validate_stages(&query.stages, CommandKind::Get)?;
-            let documents = run_pipeline(backend.scan(collection)?, &query.stages)?;
+            let documents = run_pipeline(
+                access_documents(backend, &physical_plan, collection)?,
+                &query.stages,
+            )?;
             Ok(ExecutionResult::Documents(documents))
         }
         Command::Insert {
@@ -77,7 +82,10 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
         }
         Command::Update { collection } => {
             validate_stages(&query.stages, CommandKind::Update)?;
-            let documents = run_pipeline(backend.scan(collection)?, &query.stages)?;
+            let documents = run_pipeline(
+                access_documents(backend, &physical_plan, collection)?,
+                &query.stages,
+            )?;
             let count = documents.len();
             for document in documents {
                 backend.replace(collection, document)?;
@@ -86,7 +94,10 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
         }
         Command::Delete { collection } => {
             validate_stages(&query.stages, CommandKind::Delete)?;
-            let documents = run_pipeline(backend.scan(collection)?, &query.stages)?;
+            let documents = run_pipeline(
+                access_documents(backend, &physical_plan, collection)?,
+                &query.stages,
+            )?;
             let count = documents.len();
             for document in documents {
                 backend.delete(collection, document.id())?;
@@ -118,6 +129,20 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
             backend.drop_index(name)?;
             Ok(ExecutionResult::IndexDropped(name.clone()))
         }
+    }
+}
+
+fn access_documents(
+    backend: &mut impl ExecutionBackend,
+    physical_plan: &QueryPlan,
+    collection: &str,
+) -> Result<Vec<Document>> {
+    match &physical_plan.access {
+        AccessPath::IndexScan { index, key, .. } => backend.scan_index(collection, index, key),
+        AccessPath::CollectionScan { .. } => backend.scan(collection),
+        AccessPath::Command => Err(NovaError::Internal(
+            "data command received command-only plan".to_owned(),
+        )),
     }
 }
 
@@ -504,12 +529,12 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_future_features_are_typed_errors() {
+    fn explain_and_backend_capabilities_are_explicit() {
         let mut backend = seeded_backend();
-        assert!(matches!(
-            execute_source("explain students.get {}", &mut backend),
-            Err(NovaError::Unsupported(_))
-        ));
+        assert_eq!(
+            execute_source("explain students.get {}", &mut backend).unwrap(),
+            ExecutionResult::Explained("CollectionScan(students)".to_owned())
+        );
         assert!(matches!(
             execute_source("create index by_score on students (score)", &mut backend),
             Err(NovaError::Unsupported(_))
@@ -535,6 +560,16 @@ mod tests {
                 .lookup("by_score", &IndexKey::Int64(91))
                 .unwrap(),
             vec![id(1)]
+        );
+        assert_eq!(
+            execute_source(
+                "explain students.get { score == 91 } | project name",
+                &mut backend
+            )
+            .unwrap(),
+            ExecutionResult::Explained(
+                "IndexScan(students, by_score, Int64(91)) -> Filter -> Project".to_owned()
+            )
         );
         assert_eq!(
             execute_source(

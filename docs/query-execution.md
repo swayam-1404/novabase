@@ -21,7 +21,19 @@ persists a named single-field index and `drop index` removes it. Inserts,
 updates, deletes, and collection drops maintain the catalog. A backend without
 that capability returns `NovaError::Unsupported`; composite index execution is
 also explicitly unsupported in index format v1. `explain` returns
-`Unsupported` until the Phase 10 planner produces execution plans.
+`explain` returns the Phase 10 planner's stable physical-plan description.
+
+## Planning (Phase 10)
+
+The planner receives the parsed query and persistent index definitions. For
+get, update, and delete commands it selects the lexicographically first named
+single-field index whose path has an exact equality against an indexable
+literal. Equality terms inside `and` expressions are considered. Other
+predicates deterministically use a collection scan.
+
+An index lookup supplies candidate documents, but the original filter remains
+in the operator pipeline as a residual predicate. Consequently a planner or
+catalog mistake cannot turn a non-matching candidate into a query result.
 
 ## Pipeline operators
 

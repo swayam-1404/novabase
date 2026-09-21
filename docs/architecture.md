@@ -95,7 +95,7 @@ Nova Intelligence Engine (nova-intelligence)
 | Executor                 | nova-executor      | shipped  | 7     |
 | B+ tree                  | nova-index         | shipped  | 8     |
 | Index integration        | nova-index         | shipped  | 9     |
-| Planner                  | nova-planner       | planned  | 10    |
+| Planner                  | nova-planner       | shipped  | 10    |
 | Buffer pool              | nova-buffer        | planned  | 11    |
 | WAL / recovery           | nova-wal           | planned  | 12    |
 | Transactions             | nova-transaction   | planned  | 13    |
