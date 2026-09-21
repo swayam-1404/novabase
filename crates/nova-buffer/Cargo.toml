@@ -7,6 +7,8 @@ rust-version.workspace = true
 description = "Bounded buffer pool for paging between the storage engine and disk"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
+nova-storage = { path = "../nova-storage", version = "0.1.0" }
 
 [lints]
 workspace = true
