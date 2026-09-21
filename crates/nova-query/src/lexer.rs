@@ -37,28 +37,20 @@ impl Span {
 /// Reserved `NovaQL` words. Keyword matching is ASCII case-insensitive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
-    /// `find` command.
-    Find,
+    /// `get` collection operation.
+    Get,
     /// `insert` command.
     Insert,
-    /// `into` preposition.
-    Into,
     /// `update` command.
     Update,
     /// `set` clause.
     Set,
     /// `delete` command.
     Delete,
-    /// `from` clause.
-    From,
-    /// `where` filtering clause.
-    Where,
     /// `project` projection clause.
     Project,
     /// `sort` ordering clause.
     Sort,
-    /// `by` preposition.
-    By,
     /// Ascending ordering.
     Asc,
     /// Descending ordering.
@@ -85,6 +77,8 @@ pub enum Keyword {
     Or,
     /// Logical negation.
     Not,
+    /// Array-membership operator.
+    Contains,
     /// Boolean true literal.
     True,
     /// Boolean false literal.
@@ -538,17 +532,13 @@ fn is_identifier_continue(character: char) -> bool {
 
 fn keyword(value: &str) -> Option<Keyword> {
     const KEYWORDS: &[(&str, Keyword)] = &[
-        ("find", Keyword::Find),
+        ("get", Keyword::Get),
         ("insert", Keyword::Insert),
-        ("into", Keyword::Into),
         ("update", Keyword::Update),
         ("set", Keyword::Set),
         ("delete", Keyword::Delete),
-        ("from", Keyword::From),
-        ("where", Keyword::Where),
         ("project", Keyword::Project),
         ("sort", Keyword::Sort),
-        ("by", Keyword::By),
         ("asc", Keyword::Asc),
         ("desc", Keyword::Desc),
         ("limit", Keyword::Limit),
@@ -562,6 +552,7 @@ fn keyword(value: &str) -> Option<Keyword> {
         ("and", Keyword::And),
         ("or", Keyword::Or),
         ("not", Keyword::Not),
+        ("contains", Keyword::Contains),
         ("true", Keyword::True),
         ("false", Keyword::False),
         ("null", Keyword::Null),
@@ -586,22 +577,22 @@ mod tests {
     #[test]
     fn lexes_a_representative_novaql_pipeline() {
         assert_eq!(
-            kinds("find students | where cgpa >= 8.5 and active == true | sort by cgpa desc | limit 10;"),
+            kinds("students.get { cgpa >= 8.5 and skills contains \"Rust\" } | sort cgpa desc | limit 10;"),
             vec![
-                TokenKind::Keyword(Keyword::Find),
                 TokenKind::Identifier("students".to_owned()),
-                TokenKind::Pipe,
-                TokenKind::Keyword(Keyword::Where),
+                TokenKind::Dot,
+                TokenKind::Keyword(Keyword::Get),
+                TokenKind::LeftBrace,
                 TokenKind::Identifier("cgpa".to_owned()),
                 TokenKind::GreaterEqual,
                 TokenKind::Float(8.5),
                 TokenKind::Keyword(Keyword::And),
-                TokenKind::Identifier("active".to_owned()),
-                TokenKind::EqualEqual,
-                TokenKind::Keyword(Keyword::True),
+                TokenKind::Identifier("skills".to_owned()),
+                TokenKind::Keyword(Keyword::Contains),
+                TokenKind::String("Rust".to_owned()),
+                TokenKind::RightBrace,
                 TokenKind::Pipe,
                 TokenKind::Keyword(Keyword::Sort),
-                TokenKind::Keyword(Keyword::By),
                 TokenKind::Identifier("cgpa".to_owned()),
                 TokenKind::Keyword(Keyword::Desc),
                 TokenKind::Pipe,
@@ -615,7 +606,7 @@ mod tests {
 
     #[test]
     fn lexes_document_literals_punctuation_and_operators() {
-        let source = r#"insert into users {name: "Ada", scores: [1, -2, 3.0], ok: !false}; a.b != 0 + 2 * 4 / 2 % 3 <= 9 > 1 = 1"#;
+        let source = r#"users.insert {name: "Ada", scores: [1, -2, 3.0], ok: !false}; a.b != 0 + 2 * 4 / 2 % 3 <= 9 > 1 = 1"#;
         let tokens = kinds(source);
         for expected in [
             TokenKind::LeftBrace,
@@ -653,11 +644,11 @@ mod tests {
 
     #[test]
     fn unicode_identifiers_and_byte_spans_are_preserved() {
-        let source = "find विद्यार्थी";
+        let source = "विद्यार्थी.get {}";
         let tokens = lex(source).unwrap();
-        assert_eq!(tokens[1].kind, TokenKind::Identifier("विद्यार्थी".to_owned()));
+        assert_eq!(tokens[0].kind, TokenKind::Identifier("विद्यार्थी".to_owned()));
         assert_eq!(
-            &source[tokens[1].span.start..tokens[1].span.end],
+            &source[tokens[0].span.start..tokens[0].span.end],
             "विद्यार्थी"
         );
         assert_eq!(
@@ -669,12 +660,14 @@ mod tests {
     #[test]
     fn keywords_are_case_insensitive_but_identifiers_keep_case() {
         assert_eq!(
-            kinds("FiNd Students TRUE null"),
+            kinds("Students.GeT TRUE null contains"),
             vec![
-                TokenKind::Keyword(Keyword::Find),
                 TokenKind::Identifier("Students".to_owned()),
+                TokenKind::Dot,
+                TokenKind::Keyword(Keyword::Get),
                 TokenKind::Keyword(Keyword::True),
                 TokenKind::Keyword(Keyword::Null),
+                TokenKind::Keyword(Keyword::Contains),
                 TokenKind::Eof,
             ]
         );
@@ -683,10 +676,13 @@ mod tests {
     #[test]
     fn comments_and_whitespace_are_discarded() {
         assert_eq!(
-            kinds("find // one line\n users /* block */ | limit 1"),
+            kinds("students.get // one line\n {} /* block */ | limit 1"),
             vec![
-                TokenKind::Keyword(Keyword::Find),
-                TokenKind::Identifier("users".to_owned()),
+                TokenKind::Identifier("students".to_owned()),
+                TokenKind::Dot,
+                TokenKind::Keyword(Keyword::Get),
+                TokenKind::LeftBrace,
+                TokenKind::RightBrace,
                 TokenKind::Pipe,
                 TokenKind::Keyword(Keyword::Limit),
                 TokenKind::Integer(1),

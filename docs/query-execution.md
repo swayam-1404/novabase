@@ -7,7 +7,8 @@ semantics from the later server/catalog persistence design. A deterministic
 
 ## Supported commands
 
-- `find` returns documents after applying its pipeline in source order.
+- `<collection>.get { ... }` returns documents after applying its pipeline in
+  source order.
 - `insert` evaluates an object literal, generates root/nested `NovaId` values,
   and inserts one document.
 - `update` scans and selects documents, applies `set` assignments in source
@@ -20,12 +21,12 @@ returns `Unsupported` until the Phase 10 planner produces execution plans.
 
 ## Pipeline operators
 
-`where`, `project`, `sort`, `skip`, `limit`, and `set` execute from left to
-right. `where` requires a boolean result. Projection preserves the document id,
-supports dotted paths, omits missing paths, and retains only requested nested
-fields. Sorting is stable and supports multiple keys and directions. Missing
-values sort before null, and null sorts before concrete values in ascending
-order.
+The brace predicate runs first, followed by `project`, `sort`, `skip`, `limit`,
+and `set` stages from left to right. A predicate requires a boolean result.
+Projection preserves the document id, supports dotted paths, omits missing
+paths, and retains only requested nested fields. Sorting is stable and supports
+multiple keys and directions. Missing values sort before null, and null sorts
+before concrete values in ascending order.
 
 `set` is valid only for updates. It can create missing intermediate documents,
 but cannot traverse an existing scalar or modify the implicit `_id`.
@@ -40,6 +41,8 @@ NovaDB performs no implicit numeric or string conversion:
 - Ordering requires matching scalar types. Arrays and documents are not
   orderable.
 - Equality across unlike types is false; inequality is true.
+- `contains` requires an array on the left and uses exact typed equality for
+  membership.
 - A missing path is distinct from explicit null.
 - `and` and `or` require booleans and short-circuit; `not`/`!` also requires a
   boolean.

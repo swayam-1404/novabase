@@ -14,7 +14,7 @@ use crate::evaluate::{
 /// Result of executing one `NovaQL` query.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExecutionResult {
-    /// Documents produced by a `find` pipeline.
+    /// Documents produced by a `get` pipeline.
     Documents(Vec<Document>),
     /// Identifier generated for an inserted document.
     Inserted(NovaId),
@@ -47,8 +47,8 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
     }
 
     match &query.command {
-        Command::Find { collection } => {
-            validate_stages(&query.stages, CommandKind::Find)?;
+        Command::Get { collection } => {
+            validate_stages(&query.stages, CommandKind::Get)?;
             let documents = run_pipeline(backend.scan(collection)?, &query.stages)?;
             Ok(ExecutionResult::Documents(documents))
         }
@@ -105,7 +105,7 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
 
 #[derive(Clone, Copy)]
 enum CommandKind {
-    Find,
+    Get,
     Update,
     Delete,
 }
@@ -113,7 +113,7 @@ enum CommandKind {
 fn validate_stages(stages: &[Stage], command: CommandKind) -> Result<()> {
     for stage in stages {
         let valid = match command {
-            CommandKind::Find => !matches!(stage, Stage::Set(_)),
+            CommandKind::Get => !matches!(stage, Stage::Set(_)),
             CommandKind::Update => !matches!(stage, Stage::Project(_)),
             CommandKind::Delete => !matches!(stage, Stage::Project(_) | Stage::Set(_)),
         };
@@ -127,7 +127,7 @@ fn validate_stages(stages: &[Stage], command: CommandKind) -> Result<()> {
 fn run_pipeline(mut documents: Vec<Document>, stages: &[Stage]) -> Result<Vec<Document>> {
     for stage in stages {
         match stage {
-            Stage::Where(predicate) => {
+            Stage::Filter(predicate) => {
                 let mut filtered = Vec::with_capacity(documents.len());
                 for document in documents {
                     if evaluate_predicate(predicate, &document)? {
@@ -327,6 +327,13 @@ mod tests {
         document.insert("name", name.into());
         document.insert("score", score.into());
         document.insert("active", active.into());
+        document.insert(
+            "skills",
+            NovaValue::Array(vec![
+                if active { "Rust" } else { "Python" }.into(),
+                "Databases".into(),
+            ]),
+        );
         document.insert("address", address.into());
         document.insert(
             "created",
@@ -354,10 +361,10 @@ mod tests {
     }
 
     #[test]
-    fn find_filters_sorts_projects_skips_and_limits() {
+    fn get_filters_sorts_projects_skips_and_limits() {
         let mut backend = seeded_backend();
         let result = execute_source(
-            "find students | where active == true and score >= 80 | sort by score desc | skip 1 | limit 1 | project name, address.city",
+            "students.get { active == true and score >= 80 } | sort score desc | skip 1 | limit 1 | project name, address.city",
             &mut backend,
         )
         .unwrap();
@@ -372,6 +379,15 @@ mod tests {
         );
         assert!(documents[0].lookup("address.country").is_none());
         assert!(documents[0].get("score").is_none());
+
+        let ExecutionResult::Documents(with_rust) = execute_source(
+            "students.get { skills contains \"Rust\" and score > 90 }",
+            &mut backend,
+        )
+        .unwrap() else {
+            unreachable!()
+        };
+        assert_eq!(with_rust.len(), 2);
     }
 
     #[test]
@@ -382,7 +398,7 @@ mod tests {
             ExecutionResult::CollectionCreated("users".to_owned())
         );
         let inserted = execute_source(
-            r#"insert into users {name: "Ada", score: 40, profile: {city: "Pune"}}"#,
+            r#"users.insert {name: "Ada", score: 40, profile: {city: "Pune"}}"#,
             &mut backend,
         )
         .unwrap();
@@ -390,14 +406,14 @@ mod tests {
 
         assert_eq!(
             execute_source(
-                "update users | where name == \"Ada\" | set score = score + 2, profile.active = true",
+                "users.update { name == \"Ada\" } | set score = score + 2, profile.active = true",
                 &mut backend,
             )
             .unwrap(),
             ExecutionResult::Updated(1)
         );
         let ExecutionResult::Documents(documents) =
-            execute_source("find users", &mut backend).unwrap()
+            execute_source("users.get {}", &mut backend).unwrap()
         else {
             unreachable!()
         };
@@ -408,7 +424,7 @@ mod tests {
         );
 
         assert_eq!(
-            execute_source("delete from users | where score == 42", &mut backend).unwrap(),
+            execute_source("users.delete { score == 42 }", &mut backend).unwrap(),
             ExecutionResult::Deleted(1)
         );
         assert_eq!(backend.collection_len("users"), Some(0));
@@ -421,22 +437,20 @@ mod tests {
     #[test]
     fn missing_null_and_id_semantics_are_explicit() {
         let mut backend = seeded_backend();
-        let ExecutionResult::Documents(missing) = execute_source(
-            "find students | where missing != null | limit 1",
-            &mut backend,
-        )
-        .unwrap() else {
+        let ExecutionResult::Documents(missing) =
+            execute_source("students.get { missing != null } | limit 1", &mut backend).unwrap()
+        else {
             unreachable!()
         };
         assert_eq!(missing.len(), 1);
 
         let ExecutionResult::Documents(ids) =
-            execute_source("find students | where _id == _id", &mut backend).unwrap()
+            execute_source("students.get { _id == _id }", &mut backend).unwrap()
         else {
             unreachable!()
         };
         assert_eq!(ids.len(), 4);
-        let query = format!("find students | where _id == \"{}\"", id(1));
+        let query = format!("students.get {{ _id == \"{}\" }}", id(1));
         assert_eq!(
             execute_source(&query, &mut backend).unwrap(),
             ExecutionResult::Documents(Vec::new())
@@ -446,12 +460,13 @@ mod tests {
     #[test]
     fn runtime_type_errors_do_not_panic() {
         let cases = [
-            "find students | where score",
-            "find students | where score + 1.0 > 2",
-            "find students | where score / 0 > 1",
-            "find students | sort by address",
-            "update students | set _id = 1",
-            "update students | set address.city.name = \"x\"",
+            "students.get { score }",
+            "students.get { score + 1.0 > 2 }",
+            "students.get { score / 0 > 1 }",
+            "students.get { name contains \"A\" }",
+            "students.get {} | sort address",
+            "students.update {} | set _id = 1",
+            "students.update {} | set address.city.name = \"x\"",
         ];
         for source in cases {
             let mut backend = seeded_backend();
@@ -467,7 +482,7 @@ mod tests {
     fn unsupported_future_features_are_typed_errors() {
         let mut backend = seeded_backend();
         assert!(matches!(
-            execute_source("explain find students", &mut backend),
+            execute_source("explain students.get {}", &mut backend),
             Err(NovaError::Unsupported(_))
         ));
         assert!(matches!(

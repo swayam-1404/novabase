@@ -1,10 +1,15 @@
 # NovaQL Language Contract
 
-NovaQL is NovaDB's own document query language. It is not SQL and is never
-translated into SQL. This document records only syntax that has shipped; later
-phases extend it as the parser and executor land.
+NovaQL is NovaDB's document-native query language. It is not SQL and is never
+translated into SQL. Its core form is `collection.operation { ... }`, which
+maps directly to collections, hierarchical documents, dotted field paths, and
+array operators.
 
-## Phase 5: lexical syntax
+SQL databases can expose JSON functions and operators. NovaQL's distinction is
+not that SQL is incapable of reading JSON; it is that document concepts are the
+language's primary semantics rather than extensions to a relational grammar.
+
+## Lexical syntax
 
 The lexer accepts UTF-8 source and returns tokens with half-open UTF-8 byte
 spans. It is total over valid Rust strings: malformed source returns a typed,
@@ -17,17 +22,18 @@ preserve their spelling and may use Unicode alphabetic characters.
 ### Keywords
 
 ```text
-find insert into update set delete from where project sort by asc desc
-limit skip create drop collection index on explain and or not true false null
+get insert update delete set project sort asc desc limit skip
+create drop collection index on explain and or not contains true false null
 ```
 
-These words are reserved. They establish the vocabulary for later parser
-phases; their presence does not mean every command is executable yet.
+The SQL-shaped words `find`, `where`, `from`, `into`, and `by` are not NovaQL
+commands or clauses. The pre-document-native Phase 5–7 prototype syntax was
+removed before the index phases and is intentionally not accepted as an alias.
 
 ### Literals
 
 - Integers are unsigned decimal source forms that must fit `i64`; unary `-` is
-  a separate token interpreted by the parser.
+  a separate parser operator.
 - Floats use decimal and/or exponent notation (`8.5`, `1e3`, `2.5E-2`) and must
   produce a finite `f64`.
 - Double-quoted strings allow JSON escapes: `\"`, `\\`, `\/`, `\b`, `\f`,
@@ -40,69 +46,141 @@ phases; their presence does not mean every command is executable yet.
 ```text
 { } [ ] ( ) , : . ; |
 = == ! != < <= > >= + - * / %
+and or not contains
 ```
 
-The pipe token supports NovaQL's document-processing style. For example, the
-Phase 6 grammar is intended to parse forms such as:
+## Document commands
+
+NovaQL parses exactly one query with an optional trailing semicolon. Any other
+trailing token is an error. `explain` may prefix a query, although plan output
+is introduced with the Phase 10 planner.
+
+### Read
 
 ```text
-find students
-| where cgpa >= 8.5 and active == true
-| project name, cgpa
-| sort by cgpa desc
+<collection>.get { <predicate> }
+```
+
+An empty predicate reads all documents:
+
+```novaql
+students.get {}
+```
+
+Scalar and nested-field filtering use the same document paths:
+
+```novaql
+students.get {
+    branch == "CSE" and address.state == "Odisha"
+}
+```
+
+Arrays use the document-specific `contains` operator:
+
+```novaql
+students.get {
+    skills contains "Rust"
+}
+```
+
+### Insert
+
+```novaql
+students.insert {
+    name: "Ada",
+    branch: "CSE",
+    address: {state: "Odisha"},
+    skills: ["Rust", "Python"]
+}
+```
+
+The inserted value must be an object literal. Object keys are identifiers or
+quoted strings and cannot be duplicated. Arrays and objects allow a trailing
+comma.
+
+### Update and delete
+
+```novaql
+students.update {
+    skills contains "Rust"
+}
+| set active = true, profile.reviewed = true
+
+students.delete {
+    active == false
+}
+| limit 100
+```
+
+An update requires at least one `set` stage. Empty braces deliberately select
+all documents, so bulk update/delete operations are visually explicit.
+
+## Pipeline stages
+
+`get`, `update`, and `delete` accept pipe-separated stages after their brace
+predicate:
+
+```text
+| project <path>, ...
+| sort <path> [asc|desc], ...
+| skip <non-negative integer>
+| limit <non-negative integer>
+| set <path> = <expression>, ...
+```
+
+`set` is valid only for updates. The remaining stages execute from left to
+right. For example:
+
+```novaql
+students.get {
+    address.state == "Odisha" and skills contains "Rust"
+}
+| project name, address.state, skills
+| sort cgpa desc
 | limit 10;
 ```
 
-## Phase 6: AST and parser
+## Collection and index DDL
 
-Phase 6 parses exactly one query, with an optional trailing semicolon. Any other
-trailing token is an error. `explain` may prefix a command. The supported
-commands are:
+Catalog operations retain command-first forms because they operate on schema
+objects rather than documents:
 
 ```text
-find <collection>
-insert into <collection> <object>
-update <collection>
-delete from <collection>
 create collection <name>
 drop collection <name>
 create index <name> on <collection> (<path>, ...)
 drop index <name>
 ```
 
-`find`, `update`, and `delete` accept pipe-separated stages:
+Index commands parse now and execute after Phases 8–9.
 
-```text
-| where <expression>
-| project <path>, ...
-| sort by <path> [asc|desc], ...
-| skip <non-negative integer>
-| limit <non-negative integer>
-| set <path> = <expression>, ...
-```
-
-The `set` stage is valid only for `update`, and an update requires at least one
-`set`. Insert requires an object literal. Object keys must be identifiers or
-quoted strings and may not be duplicated. Arrays and objects allow a trailing
-comma.
+## Expressions and AST
 
 Expressions support paths, scalar/array/object literals, parentheses, unary
 `not`/`!`/`-`/`+`, and left-associative binary operators. From lowest to highest
-precedence, the binary groups are `or`; `and`; comparisons; `+`/`-`; and
-`*`/`/`/`%`.
+precedence, the binary groups are:
 
-The parser produces a public, strongly typed AST with spans on queries,
-expressions, paths, and object fields. Lexical errors remain distinguishable
-from parse errors through `QueryError`. Phase 6 does not execute or plan the
-AST; that begins in Phase 7.
+```text
+or
+and
+== != < <= > >= contains
++ -
+* / %
+unary not ! - +
+```
 
-## Phase 7: execution
+The parser produces a public typed AST with spans on queries, expressions,
+paths, and object fields. Lexical and parse failures remain distinct through
+`QueryError`.
 
-Phase 7 executes collection commands and pipelines through an
-`ExecutionBackend`. Stages run left to right, expression evaluation has no
-implicit type coercion, integer arithmetic is checked, boolean operators
-short-circuit, and missing paths remain distinct from null. See
-[`query-execution.md`](query-execution.md) for the complete runtime contract.
+## Execution semantics
 
-Index commands remain unsupported until Phases 8–9, and `explain` remains
-unsupported until the Phase 10 planner.
+Collection-scan execution is provided through `ExecutionBackend`. Stages run
+left to right, expression evaluation has no implicit type coercion, integer
+arithmetic is checked, boolean operators short-circuit, and missing paths are
+distinct from null. `contains` requires an array on its left and tests exact
+typed equality against each element.
+
+See [`query-execution.md`](query-execution.md) for the complete runtime
+contract. Index access remains unavailable until Phases 8–9, and `explain`
+remains unavailable until the Phase 10 planner.

@@ -59,11 +59,12 @@ Implemented through Phase 7 — query executor:
   JSON-compatible string escapes, comments, operators, exact source spans, and
   typed errors for malformed input.
 - A strongly typed, source-spanned NovaQL AST and precedence-aware parser for
-  document commands, collection/index DDL, pipeline stages, expressions, and
-  nested document/array literals.
+  document-native `collection.operation { ... }` commands, collection/index
+  DDL, pipeline stages, expressions, and nested document/array literals.
 - A deterministic collection-scan executor with CRUD, collection DDL,
   filtering, projection, stable multi-key sorting, skip/limit, nested updates,
-  checked expression evaluation, and an explicit backend boundary.
+  checked expression evaluation, first-class array membership through
+  `contains`, and an explicit backend boundary.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first

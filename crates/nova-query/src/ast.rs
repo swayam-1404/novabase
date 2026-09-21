@@ -17,7 +17,7 @@ pub struct Query {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     /// Reads documents from a collection.
-    Find {
+    Get {
         /// Collection name.
         collection: String,
     },
@@ -68,7 +68,7 @@ impl Command {
     pub(crate) const fn accepts_pipeline(&self) -> bool {
         matches!(
             self,
-            Self::Find { .. } | Self::Update { .. } | Self::Delete { .. }
+            Self::Get { .. } | Self::Update { .. } | Self::Delete { .. }
         )
     }
 }
@@ -77,7 +77,7 @@ impl Command {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stage {
     /// Filters documents by a boolean expression.
-    Where(Expression),
+    Filter(Expression),
     /// Retains the listed document paths.
     Project(Vec<Path>),
     /// Orders documents by one or more keys.
@@ -220,6 +220,8 @@ pub enum BinaryOperator {
     Greater,
     /// Greater than or equal.
     GreaterEqual,
+    /// Array membership (`contains`).
+    Contains,
     /// Addition.
     Add,
     /// Subtraction.

@@ -51,7 +51,7 @@ pub(crate) fn evaluate_predicate(expression: &Expression, document: &Document) -
     match evaluate(expression, document)? {
         RuntimeValue::Boolean(value) => Ok(value),
         other => Err(invalid(format!(
-            "where expression must be boolean, got {}",
+            "document predicate must be boolean, got {}",
             type_name(&other)
         ))),
     }
@@ -187,6 +187,7 @@ fn evaluate_binary(
         BinaryOperator::LessEqual => ordered(&left, &right, Ordering::is_le),
         BinaryOperator::Greater => ordered(&left, &right, Ordering::is_gt),
         BinaryOperator::GreaterEqual => ordered(&left, &right, Ordering::is_ge),
+        BinaryOperator::Contains => contains(left, &right),
         BinaryOperator::Add
         | BinaryOperator::Subtract
         | BinaryOperator::Multiply
@@ -200,6 +201,16 @@ fn boolean_operand(value: &RuntimeValue, label: &str) -> Result<RuntimeValue> {
     match value {
         RuntimeValue::Boolean(value) => Ok(RuntimeValue::Boolean(*value)),
         _ => Err(invalid(format!("{label} must be boolean"))),
+    }
+}
+
+fn contains(left: RuntimeValue, right: &RuntimeValue) -> Result<RuntimeValue> {
+    match left {
+        RuntimeValue::Array(values) => Ok(RuntimeValue::Boolean(values.contains(right))),
+        value => Err(invalid(format!(
+            "left operand of `contains` must be an array, got {}",
+            type_name(&value)
+        ))),
     }
 }
 

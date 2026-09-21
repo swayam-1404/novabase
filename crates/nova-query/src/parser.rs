@@ -84,8 +84,7 @@ impl<'a> Parser<'a> {
     fn parse_query(mut self) -> Result<Query, ParseError> {
         let start = self.current().span.start;
         let explain = self.consume_keyword(Keyword::Explain);
-        let command = self.parse_command()?;
-        let mut stages = Vec::new();
+        let (command, mut stages) = self.parse_command()?;
         while self.consume_simple(&TokenKind::Pipe) {
             if !command.accepts_pipeline() {
                 return Err(self.error("this command does not accept pipeline stages"));
@@ -114,40 +113,64 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_command(&mut self) -> Result<Command, ParseError> {
+    fn parse_command(&mut self) -> Result<(Command, Vec<Stage>), ParseError> {
         match self.current().kind {
-            TokenKind::Keyword(Keyword::Find) => {
-                self.advance();
-                Ok(Command::Find {
-                    collection: self.expect_identifier("collection name after `find`")?,
-                })
+            TokenKind::Identifier(_) => self.parse_collection_command(),
+            TokenKind::Keyword(Keyword::Create) => {
+                self.parse_create().map(|command| (command, vec![]))
             }
-            TokenKind::Keyword(Keyword::Insert) => self.parse_insert(),
-            TokenKind::Keyword(Keyword::Update) => {
-                self.advance();
-                Ok(Command::Update {
-                    collection: self.expect_identifier("collection name after `update`")?,
-                })
+            TokenKind::Keyword(Keyword::Drop) => self.parse_drop().map(|command| (command, vec![])),
+            _ => {
+                Err(self.error("expected `<collection>.<operation>`, `create`, or `drop` command"))
             }
-            TokenKind::Keyword(Keyword::Delete) => {
-                self.advance();
-                self.expect_keyword(Keyword::From, "`from` after `delete`")?;
-                Ok(Command::Delete {
-                    collection: self.expect_identifier("collection name after `delete from`")?,
-                })
-            }
-            TokenKind::Keyword(Keyword::Create) => self.parse_create(),
-            TokenKind::Keyword(Keyword::Drop) => self.parse_drop(),
-            _ => Err(self.error(
-                "expected `find`, `insert`, `update`, `delete`, `create`, or `drop` command",
-            )),
         }
     }
 
-    fn parse_insert(&mut self) -> Result<Command, ParseError> {
-        self.advance();
-        self.expect_keyword(Keyword::Into, "`into` after `insert`")?;
-        let collection = self.expect_identifier("collection name after `insert into`")?;
+    fn parse_collection_command(&mut self) -> Result<(Command, Vec<Stage>), ParseError> {
+        let collection = self.expect_identifier("collection name")?;
+        self.expect_simple(&TokenKind::Dot, "`.` after collection name")?;
+        match self.current().kind {
+            TokenKind::Keyword(Keyword::Get) => {
+                self.advance();
+                let stages = self
+                    .parse_filter_body()?
+                    .map_or_else(Vec::new, |expression| vec![Stage::Filter(expression)]);
+                Ok((Command::Get { collection }, stages))
+            }
+            TokenKind::Keyword(Keyword::Insert) => {
+                self.advance();
+                self.parse_insert(collection)
+                    .map(|command| (command, vec![]))
+            }
+            TokenKind::Keyword(Keyword::Update) => {
+                self.advance();
+                let stages = self
+                    .parse_filter_body()?
+                    .map_or_else(Vec::new, |expression| vec![Stage::Filter(expression)]);
+                Ok((Command::Update { collection }, stages))
+            }
+            TokenKind::Keyword(Keyword::Delete) => {
+                self.advance();
+                let stages = self
+                    .parse_filter_body()?
+                    .map_or_else(Vec::new, |expression| vec![Stage::Filter(expression)]);
+                Ok((Command::Delete { collection }, stages))
+            }
+            _ => Err(self.error("expected `get`, `insert`, `update`, or `delete` after `.`")),
+        }
+    }
+
+    fn parse_filter_body(&mut self) -> Result<Option<Expression>, ParseError> {
+        self.expect_simple(&TokenKind::LeftBrace, "`{` before document predicate")?;
+        if self.consume_simple(&TokenKind::RightBrace) {
+            return Ok(None);
+        }
+        let expression = self.parse_expression(1)?;
+        self.expect_simple(&TokenKind::RightBrace, "`}` after document predicate")?;
+        Ok(Some(expression))
+    }
+
+    fn parse_insert(&mut self, collection: String) -> Result<Command, ParseError> {
         let document = self.parse_expression(1)?;
         if !matches!(document.kind, ExpressionKind::Object(_)) {
             return Err(ParseError {
@@ -201,10 +224,6 @@ impl<'a> Parser<'a> {
 
     fn parse_stage(&mut self) -> Result<Stage, ParseError> {
         match self.current().kind {
-            TokenKind::Keyword(Keyword::Where) => {
-                self.advance();
-                Ok(Stage::Where(self.parse_expression(1)?))
-            }
             TokenKind::Keyword(Keyword::Project) => {
                 self.advance();
                 Ok(Stage::Project(self.parse_path_list()?))
@@ -224,14 +243,12 @@ impl<'a> Parser<'a> {
                 self.advance();
                 Ok(Stage::Set(self.parse_assignments()?))
             }
-            _ => Err(self
-                .error("expected `where`, `project`, `sort`, `limit`, `skip`, or `set` after `|`")),
+            _ => Err(self.error("expected `project`, `sort`, `limit`, `skip`, or `set` after `|`")),
         }
     }
 
     fn parse_sort(&mut self) -> Result<Stage, ParseError> {
         self.advance();
-        self.expect_keyword(Keyword::By, "`by` after `sort`")?;
         let mut keys = Vec::new();
         loop {
             let path = self.parse_path()?;
@@ -552,6 +569,7 @@ fn binary_operator(kind: &TokenKind) -> Option<(BinaryOperator, u8)> {
         TokenKind::LessEqual => Some((BinaryOperator::LessEqual, 3)),
         TokenKind::Greater => Some((BinaryOperator::Greater, 3)),
         TokenKind::GreaterEqual => Some((BinaryOperator::GreaterEqual, 3)),
+        TokenKind::Keyword(Keyword::Contains) => Some((BinaryOperator::Contains, 3)),
         TokenKind::Plus => Some((BinaryOperator::Add, 4)),
         TokenKind::Minus => Some((BinaryOperator::Subtract, 4)),
         TokenKind::Star => Some((BinaryOperator::Multiply, 5)),
@@ -570,20 +588,20 @@ mod tests {
     }
 
     #[test]
-    fn parses_find_pipeline_and_expression_precedence() {
+    fn parses_get_pipeline_and_expression_precedence() {
         let query = parsed(
-            "explain find students | where cgpa >= 8.5 and active == true or rank + 2 * 3 < 10 | project name, address.city | sort by cgpa desc, name asc | skip 5 | limit 10;",
+            "explain students.get { cgpa >= 8.5 and skills contains \"Rust\" or rank + 2 * 3 < 10 } | project name, address.city | sort cgpa desc, name asc | skip 5 | limit 10;",
         );
         assert!(query.explain);
         assert_eq!(
             query.command,
-            Command::Find {
+            Command::Get {
                 collection: "students".to_owned()
             }
         );
         assert_eq!(query.stages.len(), 5);
-        assert!(matches!(query.stages[0], Stage::Where(_)));
-        let Stage::Where(expression) = &query.stages[0] else {
+        assert!(matches!(query.stages[0], Stage::Filter(_)));
+        let Stage::Filter(expression) = &query.stages[0] else {
             unreachable!()
         };
         let ExpressionKind::Binary { operator, .. } = expression.kind else {
@@ -599,7 +617,7 @@ mod tests {
     #[test]
     fn parses_insert_with_nested_document_and_arrays() {
         let query = parsed(
-            r#"insert into users {name: "Ada", active: true, scores: [1, -2, 3.5], address: {city: "Pune"}, nothing: null};"#,
+            r#"users.insert {name: "Ada", active: true, scores: [1, -2, 3.5], address: {city: "Pune"}, nothing: null};"#,
         );
         let Command::Insert {
             collection,
@@ -614,13 +632,12 @@ mod tests {
 
     #[test]
     fn parses_update_and_delete_commands() {
-        let update = parsed(
-            r"update users | where profile.age >= 18 | set active = true, score = score + 1",
-        );
+        let update =
+            parsed(r"users.update { profile.age >= 18 } | set active = true, score = score + 1");
         assert!(matches!(update.command, Command::Update { .. }));
         assert!(matches!(update.stages[1], Stage::Set(ref values) if values.len() == 2));
 
-        let delete = parsed("delete from users | where active == false | limit 100");
+        let delete = parsed("users.delete { active == false } | limit 100");
         assert!(matches!(delete.command, Command::Delete { .. }));
         assert_eq!(delete.stages.len(), 2);
     }
@@ -648,8 +665,8 @@ mod tests {
 
     #[test]
     fn parentheses_and_unary_operators_override_precedence() {
-        let query = parsed("find values | where not (a + b) * -c >= +10");
-        let Stage::Where(expression) = &query.stages[0] else {
+        let query = parsed("values.get { not (a + b) * -c >= +10 }");
+        let Stage::Filter(expression) = &query.stages[0] else {
             unreachable!()
         };
         assert!(matches!(
@@ -665,17 +682,20 @@ mod tests {
     fn rejects_invalid_or_trailing_syntax_with_spans() {
         let cases = [
             "",
-            "find",
-            "insert users {}",
-            "insert into users 42",
-            "insert into users {a: 1, a: 2}",
-            "update users | where active",
-            "find users | set active = true",
+            "find students",
+            "students",
+            "students.get",
+            "students.get { active",
+            "users.insert 42",
+            "users.insert {a: 1, a: 2}",
+            "users.update { active }",
+            "students.get {} | set active = true",
             "create index x on users ()",
-            "find users trailing",
-            "find users;;",
-            "delete users",
-            "find users | limit -1",
+            "students.get {} trailing",
+            "students.get {};;",
+            "users.delete",
+            "students.get {} | limit -1",
+            "students.get {} | sort by score",
         ];
         for source in cases {
             let result = std::panic::catch_unwind(|| parse(source));
@@ -690,6 +710,9 @@ mod tests {
 
     #[test]
     fn lexical_errors_are_preserved() {
-        assert!(matches!(parse("find @"), Err(QueryError::Lex(_))));
+        assert!(matches!(
+            parse("students.get { @ }"),
+            Err(QueryError::Lex(_))
+        ));
     }
 }
