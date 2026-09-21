@@ -97,7 +97,7 @@ Nova Intelligence Engine (nova-intelligence)
 | Index integration        | nova-index         | shipped  | 9     |
 | Planner                  | nova-planner       | shipped  | 10    |
 | Buffer pool              | nova-buffer        | shipped  | 11    |
-| WAL / recovery           | nova-wal           | planned  | 12    |
+| WAL / recovery           | nova-wal           | shipped  | 12    |
 | Transactions             | nova-transaction   | planned  | 13    |
 | Server                   | nova-server        | planned  | 14    |
 | Auth                     | nova-auth          | planned  | 15    |

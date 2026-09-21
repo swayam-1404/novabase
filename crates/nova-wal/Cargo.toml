@@ -7,6 +7,8 @@ rust-version.workspace = true
 description = "Write-ahead log and crash recovery for NovaDB"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
+nova-storage = { path = "../nova-storage", version = "0.1.0" }
 
 [lints]
 workspace = true

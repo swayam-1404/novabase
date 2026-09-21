@@ -145,6 +145,10 @@ version = "0.1.0"
 [[package]]
 name = "nova-wal"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+ "nova-storage",
+]
 
 [[package]]
 name = "nu-ansi-term"
