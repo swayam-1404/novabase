@@ -93,7 +93,7 @@ Nova Intelligence Engine (nova-intelligence)
 | NovaQL lexer             | nova-query         | shipped  | 5     |
 | NovaQL parser            | nova-query         | shipped  | 6     |
 | Executor                 | nova-executor      | shipped  | 7     |
-| B+ tree                  | nova-index         | planned  | 8     |
+| B+ tree                  | nova-index         | shipped  | 8     |
 | Index integration        | nova-index         | planned  | 9     |
 | Planner                  | nova-planner       | planned  | 10    |
 | Buffer pool              | nova-buffer        | planned  | 11    |

@@ -93,6 +93,9 @@ dependencies = [
 [[package]]
 name = "nova-index"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+]
 
 [[package]]
 name = "nova-intelligence"

@@ -7,6 +7,7 @@ rust-version.workspace = true
 description = "Persistent B+ tree index and index management for NovaDB"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
 
 [lints]
 workspace = true
