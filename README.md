@@ -145,6 +145,10 @@ cargo build --workspace
 
 ## Run
 
+See [`NOVADB_COMMANDS.txt`](NOVADB_COMMANDS.txt) for the complete plain-text
+usage guide, including Studio, CLI, NovaQL CRUD/DDL, pipelines, operators,
+authentication, examples, and current limitations.
+
 Use the CLI against a running NovaDB server:
 
 ```sh

@@ -1,0 +1,572 @@
+NOVADB USER GUIDE AND COMMAND REFERENCE
+=======================================
+
+Project: NovaDB (NOVA-db)
+Language: NovaQL (NovaDB does not use or translate SQL)
+Default server address: 127.0.0.1:7400
+
+
+1. CURRENT USAGE MODEL
+----------------------
+
+NovaDB currently provides:
+
+  * NovaDB Studio, a native desktop NovaQL interface.
+  * The `nova` command-line client and interactive shell.
+  * The `nova-client` Rust SDK.
+  * The `NovaServer` Rust API for embedding a server in an application.
+
+There is not yet a standalone `novadb server` or daemon command. The easiest
+way to try NovaDB locally is NovaDB Studio's Demo button. Demo mode starts a
+real NovaDB server with an in-memory backend on a local random port. Its data
+is deleted when Studio closes.
+
+For a persistent deployment, an application must currently construct
+`NovaServer` with the required persistent backend and authentication setup.
+
+
+2. BUILD NOVADB
+---------------
+
+Open PowerShell in the repository root:
+
+  cd E:\NOVA-db
+
+Build the Rust workspace:
+
+  C:\Users\swaya\.cargo\bin\cargo.exe build --workspace
+
+The command-line executable is then available under:
+
+  E:\NOVA-db\target\debug\nova.exe
+
+
+3. USE NOVADB STUDIO
+--------------------
+
+Run Studio in development mode:
+
+  cd E:\NOVA-db\apps\nova-studio
+  npm install
+  $env:Path = 'C:\Users\swaya\.cargo\bin;' + $env:Path
+  npm run tauri dev
+
+Build the optimized Windows executable:
+
+  npm run tauri build
+
+Run the resulting application:
+
+  E:\NOVA-db\apps\nova-studio\src-tauri\target\release\nova-studio.exe
+
+Studio controls:
+
+  Demo       Starts a session-only in-memory NovaDB server.
+  Connect    Probes the entered remote HOST:PORT address.
+  Run        Executes the NovaQL text in the editor.
+  Explain    Executes the current query with the `explain` prefix.
+  Ctrl+Enter Runs the current query.
+  Copy       Copies the raw server response.
+
+To use a remote server, enter its HOST:PORT and, for an authenticated server,
+its bearer token. Studio does not store bearer tokens or query history on
+disk. Saved collection names are local shortcuts, not server-side collection
+discovery. Protocol v2 currently returns display text, so results are shown as
+the server returns them rather than as an invented table/grid.
+
+
+4. NOVA COMMAND-LINE CLIENT
+---------------------------
+
+General forms:
+
+  nova [--address HOST:PORT] [--token TOKEN] query <NovaQL>
+  nova [--address HOST:PORT] [--token TOKEN] shell
+  nova version
+  nova help
+
+If running through Cargo from the repository root:
+
+  C:\Users\swaya\.cargo\bin\cargo.exe run -p nova-cli -- <arguments>
+
+Options:
+
+  --address HOST:PORT
+  -a HOST:PORT
+      Select the NovaDB server. Default: 127.0.0.1:7400.
+
+  --token TOKEN
+  -t TOKEN
+      Send a bearer session token to an authenticated server.
+
+  --help, -h
+      Print command help.
+
+  --version, -V
+      Print the NovaDB version.
+
+Commands:
+
+  query <NovaQL>
+      Execute one NovaQL command and print the server response.
+
+  shell
+      Open an interactive shell. Enter one complete NovaQL command per line.
+      Type `exit` or `quit`, or send end-of-input, to close the shell.
+
+  version
+      Print the NovaDB version.
+
+  help
+      Print command help.
+
+Running `nova` without a command also opens the shell.
+
+Environment variables:
+
+  NOVADB_ADDRESS    Default HOST:PORT address.
+  NOVADB_TOKEN      Default bearer token.
+
+PowerShell example:
+
+  $env:NOVADB_ADDRESS = '127.0.0.1:7400'
+  $env:NOVADB_TOKEN = 'your-session-token'
+  .\target\debug\nova.exe query 'students.get {}'
+
+Explicit --address and --token options override the environment variables.
+Prefer NOVADB_TOKEN over a command-line token on shared systems because command
+arguments may be visible to other processes.
+
+One-shot examples from PowerShell:
+
+  .\target\debug\nova.exe query 'create collection students'
+
+  .\target\debug\nova.exe query `
+    'students.insert { name: "Ada", branch: "CSE" }'
+
+  .\target\debug\nova.exe --address 127.0.0.1:7400 query `
+    'students.get { branch == "CSE" }'
+
+
+5. NOVAQL GENERAL RULES
+-----------------------
+
+NovaQL is document-native. Its main form is:
+
+  collection.operation { ... }
+
+NovaQL accepts exactly one command at a time. A final semicolon is optional:
+
+  students.get {};
+
+Keywords are case-insensitive. Identifier spelling is preserved, and Unicode
+alphabetic identifiers are supported.
+
+Whitespace is ignored. Comments are supported:
+
+  // line comment
+
+  /* block comment */
+
+Block comments cannot be nested.
+
+NovaQL intentionally does not support SQL commands such as SELECT, FROM,
+WHERE, INSERT INTO, or aliases such as find.
+
+
+6. COLLECTION COMMANDS
+----------------------
+
+Create a collection:
+
+  create collection students
+
+Drop a collection and its documents:
+
+  drop collection students
+
+These are administrative DDL operations on authenticated servers and require
+an Admin role.
+
+
+7. INSERT DOCUMENTS
+-------------------
+
+Syntax:
+
+  <collection>.insert { <field>: <value>, ... }
+
+Example:
+
+  students.insert {
+      name: "Ada",
+      branch: "CSE",
+      cgpa: 9.25,
+      active: true,
+      skills: ["Rust", "Databases"],
+      address: {
+          city: "Bhubaneswar",
+          state: "Odisha"
+      },
+      nickname: null
+  }
+
+The inserted value must be an object. Object keys may be identifiers or quoted
+strings. Duplicate fields are rejected. Arrays and objects may have a trailing
+comma. NovaDB generates the document's implicit `_id`.
+
+
+8. READ DOCUMENTS
+-----------------
+
+Syntax:
+
+  <collection>.get { <predicate> }
+
+Read every document:
+
+  students.get {}
+
+Filter scalar fields:
+
+  students.get { branch == "CSE" and active == true }
+
+Filter nested fields with dotted paths:
+
+  students.get { address.state == "Odisha" }
+
+Test exact array membership:
+
+  students.get { skills contains "Rust" }
+
+Read a particular generated id when its textual id is known:
+
+  students.get { _id == "0123456789abcdef0123456789abcdef" }
+
+
+9. UPDATE DOCUMENTS
+-------------------
+
+Syntax:
+
+  <collection>.update { <predicate> } | set <path> = <expression>, ...
+
+Update matching documents:
+
+  students.update { branch == "CSE" } | set active = true
+
+Update nested fields and compute a value from an existing field:
+
+  students.update { name == "Ada" }
+  | set profile.reviewed = true, score = score + 2
+
+Update every document (use carefully):
+
+  students.update {} | set migrated = true
+
+An update must contain at least one `set` stage. `_id` cannot be changed.
+
+
+10. DELETE DOCUMENTS
+--------------------
+
+Syntax:
+
+  <collection>.delete { <predicate> }
+
+Delete matching documents:
+
+  students.delete { active == false }
+
+Limit a bulk deletion:
+
+  students.delete { active == false } | limit 100
+
+Delete every document in a collection (use carefully):
+
+  students.delete {}
+
+
+11. INDEX COMMANDS
+------------------
+
+Create a named index:
+
+  create index by_branch on students (branch)
+
+Create an index on a nested field:
+
+  create index by_state on students (address.state)
+
+Drop an index:
+
+  drop index by_state
+
+The current persistent index implementation supports named single-field
+indexes. Although the parser recognizes a comma-separated field list, the
+index backend rejects composite indexes in index format v1.
+
+Indexes are maintained when documents are inserted, updated, or deleted. The
+planner can use a matching index for supported equality predicates.
+
+
+12. EXPLAIN A QUERY
+-------------------
+
+Prefix a command with `explain` to return its physical plan without performing
+the normal operation:
+
+  explain students.get { branch == "CSE" }
+
+With a pipeline:
+
+  explain students.get { address.state == "Odisha" }
+  | project name, address.state
+  | limit 10
+
+Explain output shows whether NovaDB selected a collection scan or a usable
+index scan and retains residual filters needed for correctness.
+
+
+13. PIPELINE STAGES
+-------------------
+
+Pipelines are written after the command with `|`. Stages run from left to
+right.
+
+Project selected paths:
+
+  | project name, address.city, skills
+
+Sort by one or more fields:
+
+  | sort cgpa desc, name asc
+
+Ascending is the default, so these are equivalent:
+
+  | sort name
+  | sort name asc
+
+Skip results:
+
+  | skip 20
+
+Limit results:
+
+  | limit 10
+
+Assign values during an update:
+
+  | set active = true, score = score + 1
+
+Applicability:
+
+  get       project, sort, skip, limit
+  update    sort, skip, limit, set (at least one set is required)
+  delete    sort, skip, limit
+  insert    no pipeline
+  DDL       no pipeline
+
+The parser recognizes every pipeline keyword after get/update/delete, but the
+executor deliberately rejects project for update/delete and rejects set for
+get/delete so that writes cannot accidentally replace stored documents with a
+projection.
+
+Non-negative integer values are required for skip and limit.
+
+Complete example:
+
+  students.get {
+      address.state == "Odisha" and skills contains "Rust"
+  }
+  | project name, address.state, skills, cgpa
+  | sort cgpa desc, name asc
+  | skip 0
+  | limit 10;
+
+
+14. VALUES AND LITERALS
+-----------------------
+
+Null:
+
+  null
+
+Booleans:
+
+  true
+  false
+
+Signed 64-bit integers:
+
+  42
+  -17
+
+Finite 64-bit floating-point values:
+
+  9.25
+  1e3
+  2.5E-2
+
+Strings use double quotes and JSON-compatible escapes:
+
+  "NovaDB"
+  "line one\nline two"
+  "quote: \""
+  "unicode: \u004e"
+
+Arrays:
+
+  ["Rust", "Python", 42, true, null]
+
+Nested objects:
+
+  { city: "Bhubaneswar", geo: { zone: 3 } }
+
+There is no implicit conversion between unlike types during evaluation.
+
+
+15. OPERATORS AND PRECEDENCE
+----------------------------
+
+Logical operators:
+
+  or
+  and
+  not
+  !
+
+Comparison and document operators:
+
+  ==    equal
+  !=    not equal
+  <     less than
+  <=    less than or equal
+  >     greater than
+  >=    greater than or equal
+  contains    exact membership in an array on the left
+
+Arithmetic operators:
+
+  +     addition
+  -     subtraction or unary negation
+  *     multiplication
+  /     division
+  %     remainder
+
+Unary numeric plus is also supported.
+
+Precedence from lowest to highest:
+
+  or
+  and
+  == != < <= > >= contains
+  + -
+  * / %
+  unary not ! - +
+
+Use parentheses to make grouping explicit:
+
+  students.get {
+      active == true and (score >= 80 or skills contains "Rust")
+  }
+
+Boolean `and` and `or` short-circuit. Integer arithmetic is checked, division
+by zero is an error, and `contains` requires an array as its left operand.
+Missing paths are distinct from fields whose value is null.
+
+
+16. AUTHENTICATION AND ROLES
+----------------------------
+
+Authenticated servers accept opaque bearer session tokens.
+
+Roles:
+
+  ReadOnly    Can read documents.
+  ReadWrite   Can read, insert, update, and delete documents.
+  Admin       Can also create/drop collections and indexes.
+
+Supply a token through `--token`, `-t`, NOVADB_TOKEN, or Studio's token field.
+User creation, password login, role changes, and session issuance are currently
+embedding/bootstrap APIs rather than NovaQL or CLI administration commands.
+
+NovaDB does not currently provide TLS. Do not expose an authenticated server
+over an untrusted network without placing it behind a confidential transport.
+
+
+17. QUICK LOCAL WALKTHROUGH
+---------------------------
+
+1. Start NovaDB Studio.
+2. Select Demo. Studio displays the local random server address.
+3. Run these commands one at a time:
+
+  create collection students
+
+  students.insert {
+      name: "Ada",
+      branch: "CSE",
+      score: 91,
+      skills: ["Rust", "Databases"],
+      address: { state: "Odisha" }
+  }
+
+  students.insert {
+      name: "Grace",
+      branch: "ECE",
+      score: 88,
+      skills: ["Compilers"],
+      address: { state: "Karnataka" }
+  }
+
+  students.get {}
+
+  students.get { skills contains "Rust" }
+  | project name, score, address.state
+  | sort score desc
+
+  create index by_branch on students (branch)
+
+  explain students.get { branch == "CSE" }
+
+  students.update { name == "Ada" } | set score = score + 1
+
+  students.delete { score < 90 }
+
+  students.get {} | sort score desc
+
+4. Close Studio. Demo-mode data is intentionally discarded.
+
+
+18. DEVELOPMENT AND VERIFICATION COMMANDS
+-----------------------------------------
+
+Run NovaDB's complete root gate from E:\NOVA-db:
+
+  C:\Users\swaya\.cargo\bin\cargo.exe fmt --all -- --check
+  C:\Users\swaya\.cargo\bin\cargo.exe clippy --workspace --all-targets -- -D warnings
+  C:\Users\swaya\.cargo\bin\cargo.exe test --workspace
+
+Run the Studio checks from E:\NOVA-db\apps\nova-studio:
+
+  npm run build
+  C:\Users\swaya\.cargo\bin\cargo.exe fmt --manifest-path src-tauri\Cargo.toml -- --check
+  C:\Users\swaya\.cargo\bin\cargo.exe clippy --manifest-path src-tauri\Cargo.toml --all-targets -- -D warnings
+  C:\Users\swaya\.cargo\bin\cargo.exe test --manifest-path src-tauri\Cargo.toml
+
+
+19. CURRENT LIMITATIONS
+-----------------------
+
+  * NovaDB is an experimental research prototype, not production software.
+  * There is no standalone packaged server daemon command yet.
+  * Studio Demo storage is memory-only and session-only.
+  * Protocol v2 returns display text and has no collection discovery command.
+  * Composite indexes are not supported by index format v1.
+  * User/auth administration is available through Rust bootstrap APIs, not
+    NovaQL commands.
+  * There is no SQL compatibility, distributed consensus, sharding,
+    replication, full MVCC, or built-in TLS.
+
+For deeper design details, read README.md and the files under docs\.
