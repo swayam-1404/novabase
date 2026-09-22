@@ -22,4 +22,5 @@ elapsed microseconds, prior index-scan count, and calculated return ratio.
 Invalid policy values return a typed error. The advisor is read-only: it never
 creates an index, changes a plan, or participates in database correctness.
 
-Recommendation lifecycle and before/after evaluation belong to Phase 20.
+Phase 20 adds an explicit human-controlled lifecycle and before/after
+evaluation; the advisor itself remains read-only.

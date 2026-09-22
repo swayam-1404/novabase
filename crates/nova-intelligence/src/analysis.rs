@@ -63,6 +63,9 @@ pub struct IndexCandidateStats {
     pub collection_scan_examined: u64,
     pub collection_scan_returned: u64,
     pub collection_scan_elapsed_micros: u64,
+    pub index_scan_examined: u64,
+    pub index_scan_returned: u64,
+    pub index_scan_elapsed_micros: u64,
 }
 
 /// Aggregates a stable telemetry snapshot into deterministic workload evidence.
@@ -182,6 +185,16 @@ fn add_candidate_success(stats: &mut IndexCandidateStats, event: &TelemetryEvent
             .saturating_add(as_u64(event.returned));
         stats.collection_scan_elapsed_micros = stats
             .collection_scan_elapsed_micros
+            .saturating_add(event.elapsed_micros);
+    } else if matches!(event.access, TelemetryAccess::IndexScan { .. }) {
+        stats.index_scan_examined = stats
+            .index_scan_examined
+            .saturating_add(as_u64(event.examined));
+        stats.index_scan_returned = stats
+            .index_scan_returned
+            .saturating_add(as_u64(event.returned));
+        stats.index_scan_elapsed_micros = stats
+            .index_scan_elapsed_micros
             .saturating_add(event.elapsed_micros);
     }
 }
