@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 17 — execution telemetry:
+Implemented through Phase 18 — workload aggregation and analysis:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -99,6 +99,9 @@ Implemented through Phase 17 — execution telemetry:
 - An observational query-telemetry path with literal-free fingerprints,
   predicate paths, collection/index access type, examined/returned counts,
   elapsed time, success state, and a thread-safe best-effort in-memory sink.
+- Deterministic workload analysis with global, fingerprint, and
+  collection/predicate-path aggregates; saturating counters; ordered output;
+  and explicit separation of failures from successful-performance evidence.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
@@ -109,8 +112,9 @@ shipped the persistent B+ tree, Phase 9 integrated index lifecycle, and Phase
 bounded page buffer, and Phase 12 shipped write-ahead logging and startup redo.
 Phase 13 shipped transaction states and strict locking, and Phase 14 shipped
 the server protocol and request runtime. Phase 15 shipped authentication and
-role enforcement, Phase 16 shipped the SDK and CLI, and Phase 17 shipped
-execution telemetry. Next: Phase 18 (workload aggregation and analysis).
+role enforcement, Phase 16 shipped the SDK and CLI, Phase 17 shipped execution
+telemetry, and Phase 18 shipped workload aggregation and analysis. Next: Phase
+19 (evidence-based index recommendations).
 
 ## Build
 
@@ -185,8 +189,8 @@ Phase 5 ✓ NovaQL lexer — Phase 6 ✓ NovaQL parser — Phase 7 ✓ query exe
 Phase 8 ✓ B+ tree — Phase 9 ✓ index integration — Phase 10 ✓ planner — Phase 11 ✓ buffer
 pool — Phase 12 ✓ WAL/recovery — Phase 13 ✓ transactions — Phase 14 ✓ server —
 Phase 15 ✓ auth —
-Phase 16 ✓ CLI — Phase 17 ✓ telemetry — Phase 18-20 NIE — Phase 21 optional
-AI assistant — Phase 22 hardening.
+Phase 16 ✓ CLI — Phase 17 ✓ telemetry — Phase 18 ✓ NIE analysis — Phase 19-20
+NIE advisor — Phase 21 optional AI assistant — Phase 22 hardening.
 
 Future work (out of scope for v1): SQL compatibility, distributed consensus,
 sharding, replication, full MVCC, graph engine, HNSW/ANN, LSM trees, learned

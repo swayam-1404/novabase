@@ -8,6 +8,10 @@ use std::sync::Mutex;
 
 use nova_core::error::{NovaError, Result};
 
+mod analysis;
+
+pub use analysis::{analyze_workload, FingerprintStats, PredicatePathStats, WorkloadReport};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TelemetryAccess {
     Command,
