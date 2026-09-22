@@ -8,9 +8,13 @@ use std::sync::Mutex;
 
 use nova_core::error::{NovaError, Result};
 
+mod advisor;
 mod analysis;
 
-pub use analysis::{analyze_workload, FingerprintStats, PredicatePathStats, WorkloadReport};
+pub use advisor::{recommend_indexes, AdvisorConfig, IndexRecommendation, RecommendationEvidence};
+pub use analysis::{
+    analyze_workload, FingerprintStats, IndexCandidateStats, PredicatePathStats, WorkloadReport,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TelemetryAccess {
@@ -24,6 +28,7 @@ pub struct TelemetryEvent {
     pub fingerprint: String,
     pub collection: Option<String>,
     pub predicate_paths: Vec<String>,
+    pub index_candidate_paths: Vec<String>,
     pub access: TelemetryAccess,
     pub examined: usize,
     pub returned: usize,
@@ -91,6 +96,7 @@ mod tests {
             fingerprint: "get:students|filter".to_owned(),
             collection: Some("students".to_owned()),
             predicate_paths: vec!["branch".to_owned()],
+            index_candidate_paths: vec!["branch".to_owned()],
             access: TelemetryAccess::CollectionScan,
             examined: 10,
             returned: 2,

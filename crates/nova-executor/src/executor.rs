@@ -9,7 +9,8 @@ use nova_core::nova_value::NovaValue;
 use nova_intelligence::{TelemetryAccess, TelemetryEvent, TelemetrySink};
 use nova_planner::{plan, AccessPath, QueryPlan};
 use nova_query::{
-    Assignment, Command, Expression, ExpressionKind, Path, Query, SortDirection, SortKey, Stage,
+    Assignment, BinaryOperator, Command, Expression, ExpressionKind, Literal, Path, Query,
+    SortDirection, SortKey, Stage,
 };
 
 use crate::backend::ExecutionBackend;
@@ -214,6 +215,7 @@ fn build_event(
         fingerprint: fingerprint(query),
         collection: command_collection(&query.command).map(str::to_owned),
         predicate_paths: predicate_paths(&query.stages),
+        index_candidate_paths: index_candidate_paths(&query.stages),
         access,
         examined,
         returned,
@@ -283,6 +285,50 @@ fn predicate_paths(stages: &[Stage]) -> Vec<String> {
         collect_paths(expression, &mut paths);
     }
     paths.into_iter().collect()
+}
+
+fn index_candidate_paths(stages: &[Stage]) -> Vec<String> {
+    let mut paths = BTreeSet::new();
+    for expression in stages.iter().filter_map(|stage| match stage {
+        Stage::Filter(expression) => Some(expression),
+        _ => None,
+    }) {
+        collect_index_candidates(expression, &mut paths);
+    }
+    paths.into_iter().collect()
+}
+
+fn collect_index_candidates(expression: &Expression, paths: &mut BTreeSet<String>) {
+    let ExpressionKind::Binary {
+        left,
+        operator,
+        right,
+    } = &expression.kind
+    else {
+        return;
+    };
+    if *operator == BinaryOperator::And {
+        collect_index_candidates(left, paths);
+        collect_index_candidates(right, paths);
+    } else if *operator == BinaryOperator::Equal {
+        if let Some(path) =
+            indexable_path_literal(left, right).or_else(|| indexable_path_literal(right, left))
+        {
+            paths.insert(path);
+        }
+    }
+}
+
+fn indexable_path_literal(path: &Expression, literal: &Expression) -> Option<String> {
+    let ExpressionKind::Path(path) = &path.kind else {
+        return None;
+    };
+    match &literal.kind {
+        ExpressionKind::Literal(Literal::Integer(_) | Literal::Float(_) | Literal::String(_)) => {
+            Some(path.segments.join("."))
+        }
+        _ => None,
+    }
 }
 
 fn collect_paths(expression: &Expression, paths: &mut BTreeSet<String>) {
@@ -799,18 +845,22 @@ mod tests {
     fn telemetry_is_literal_free_and_observes_success_and_failure() {
         let sink = InMemoryTelemetry::new();
         let mut backend = seeded_backend();
-        let query = parse("students.get { score >= 80 } | limit 1").unwrap();
+        let query = parse("students.get { score == 91 } | limit 1").unwrap();
         execute_with_telemetry(&query, &mut backend, &sink).unwrap();
+        let range = parse("students.get { score >= 80 }").unwrap();
+        execute_with_telemetry(&range, &mut backend, &sink).unwrap();
         let bad = parse("students.get { score }").unwrap();
         assert!(execute_with_telemetry(&bad, &mut backend, &sink).is_err());
         let events = sink.snapshot().unwrap();
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 3);
         assert_eq!(events[0].fingerprint, "get:students|filter|limit");
-        assert!(!events[0].fingerprint.contains("80"));
+        assert!(!events[0].fingerprint.contains("91"));
         assert_eq!(events[0].predicate_paths, ["score"]);
+        assert_eq!(events[0].index_candidate_paths, ["score"]);
         assert_eq!(events[0].access, TelemetryAccess::CollectionScan);
         assert_eq!((events[0].examined, events[0].returned), (4, 1));
         assert!(events[0].succeeded);
-        assert!(!events[1].succeeded);
+        assert!(events[1].index_candidate_paths.is_empty());
+        assert!(!events[2].succeeded);
     }
 }

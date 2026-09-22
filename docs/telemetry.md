@@ -10,6 +10,9 @@ predicate paths, collection/index/command access type, candidate documents
 examined, results or rows affected, elapsed microseconds, and success state.
 Fingerprints retain collection and operator shape but omit all literal values.
 Documents, credentials, tokens, and returned field values are never recorded.
+Telemetry separately identifies exact integer, float, and string equality
+paths that the current planner can use for an index. Literal values remain
+excluded.
 
 `TelemetrySink::record` has no result channel. The in-memory implementation
 silently drops an event if its mutex was poisoned, ensuring telemetry failure

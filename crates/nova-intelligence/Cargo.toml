@@ -8,6 +8,7 @@ description = "Nova Intelligence Engine (NIE): workload telemetry analysis and e
 
 [dependencies]
 nova-core = { path = "../nova-core", version = "0.1.0" }
+nova-index = { path = "../nova-index", version = "0.1.0" }
 
 [lints]
 workspace = true

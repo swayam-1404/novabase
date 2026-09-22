@@ -16,6 +16,7 @@ pub struct WorkloadReport {
     pub total_elapsed_micros: u64,
     pub fingerprints: Vec<FingerprintStats>,
     pub predicate_paths: Vec<PredicatePathStats>,
+    pub index_candidates: Vec<IndexCandidateStats>,
 }
 
 /// Aggregate for one collection and literal-free query shape.
@@ -50,12 +51,27 @@ pub struct PredicatePathStats {
     pub total_elapsed_micros: u64,
 }
 
+/// Aggregate for one planner-usable equality path within a collection.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct IndexCandidateStats {
+    pub collection: String,
+    pub path: String,
+    pub successful_executions: u64,
+    pub failed_executions: u64,
+    pub collection_scans: u64,
+    pub index_scans: u64,
+    pub collection_scan_examined: u64,
+    pub collection_scan_returned: u64,
+    pub collection_scan_elapsed_micros: u64,
+}
+
 /// Aggregates a stable telemetry snapshot into deterministic workload evidence.
 #[must_use]
 pub fn analyze_workload(events: &[TelemetryEvent]) -> WorkloadReport {
     let mut report = WorkloadReport::default();
     let mut fingerprints = BTreeMap::new();
     let mut predicate_paths = BTreeMap::new();
+    let mut index_candidates = BTreeMap::new();
 
     for event in events {
         report.total_events = report.total_events.saturating_add(1);
@@ -103,11 +119,26 @@ pub fn analyze_workload(events: &[TelemetryEvent]) -> WorkloadReport {
                     stats.failed_executions = stats.failed_executions.saturating_add(1);
                 }
             }
+            for path in event.index_candidate_paths.iter().collect::<BTreeSet<_>>() {
+                let stats = index_candidates
+                    .entry((collection.clone(), path.clone()))
+                    .or_insert_with(|| IndexCandidateStats {
+                        collection: collection.clone(),
+                        path: path.clone(),
+                        ..IndexCandidateStats::default()
+                    });
+                if event.succeeded {
+                    add_candidate_success(stats, event);
+                } else {
+                    stats.failed_executions = stats.failed_executions.saturating_add(1);
+                }
+            }
         }
     }
 
     report.fingerprints = fingerprints.into_values().collect();
     report.predicate_paths = predicate_paths.into_values().collect();
+    report.index_candidates = index_candidates.into_values().collect();
     report
 }
 
@@ -137,6 +168,22 @@ fn add_path_success(stats: &mut PredicatePathStats, event: &TelemetryEvent) {
     stats.total_elapsed_micros = stats
         .total_elapsed_micros
         .saturating_add(event.elapsed_micros);
+}
+
+fn add_candidate_success(stats: &mut IndexCandidateStats, event: &TelemetryEvent) {
+    stats.successful_executions = stats.successful_executions.saturating_add(1);
+    add_access(&mut stats.collection_scans, &mut stats.index_scans, event);
+    if event.access == TelemetryAccess::CollectionScan {
+        stats.collection_scan_examined = stats
+            .collection_scan_examined
+            .saturating_add(as_u64(event.examined));
+        stats.collection_scan_returned = stats
+            .collection_scan_returned
+            .saturating_add(as_u64(event.returned));
+        stats.collection_scan_elapsed_micros = stats
+            .collection_scan_elapsed_micros
+            .saturating_add(event.elapsed_micros);
+    }
 }
 
 fn add_access(collection_scans: &mut u64, index_scans: &mut u64, event: &TelemetryEvent) {
@@ -170,6 +217,7 @@ mod tests {
             fingerprint: fingerprint.to_owned(),
             collection: collection.map(str::to_owned),
             predicate_paths: paths.iter().map(ToString::to_string).collect(),
+            index_candidate_paths: paths.iter().map(ToString::to_string).collect(),
             access,
             examined: 100,
             returned: 10,
@@ -209,6 +257,7 @@ mod tests {
         assert_eq!(report.predicate_paths[0].path, "address.state");
         assert_eq!(report.predicate_paths[1].path, "name");
         assert_eq!(report.predicate_paths[1].index_scans, 1);
+        assert_eq!(report.index_candidates.len(), 2);
     }
 
     #[test]

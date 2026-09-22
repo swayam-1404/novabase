@@ -2,7 +2,8 @@
 
 `analyze_workload` converts a stable telemetry snapshot into deterministic,
 read-only evidence. It reports global totals and ordered aggregates for each
-literal-free fingerprint and each collection/predicate-path pair.
+literal-free fingerprint, each collection/predicate-path pair, and each
+planner-usable equality path.
 
 Successful events contribute examined-document, returned-result, elapsed-time,
 and access-path metrics. Failed events remain visible through failure counters
@@ -16,4 +17,5 @@ All counters saturate instead of overflowing, and ordered maps make reports
 stable across runs.
 
 Phase 18 performs no recommendation, schema change, or automatic index
-creation. Recommendation policy and explainable thresholds belong to Phase 19.
+creation. Phase 19 consumes the candidate aggregates using explicit,
+explainable thresholds.
