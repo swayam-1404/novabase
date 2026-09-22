@@ -16,6 +16,7 @@ members = [
     "crates/nova-server",
     "crates/nova-client",
     "cli/nova-cli",
+    "tests",
 ]
 
 [workspace.package]

@@ -206,6 +206,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nova-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "nova-core",
+ "nova-executor",
+ "nova-intelligence",
+ "nova-nbf",
+ "nova-query",
+]
+
+[[package]]
 name = "nova-intelligence"
 version = "0.1.0"
 dependencies = [

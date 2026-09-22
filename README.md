@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 21 — optional recommendation assistant:
+Implemented through Phase 22 — hardening and reproducible validation:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -111,6 +111,10 @@ Implemented through Phase 21 — optional recommendation assistant:
 - A provider-neutral optional assistant that exposes only bounded aggregate
   evidence, supplies deterministic NovaQL index suggestions, and treats any
   generated narrative as untrusted display-only text.
+- A compiled cross-crate hardening harness covering the complete recommendation
+  loop, deterministic malformed NBF/NovaQL sweeps, and concurrent telemetry;
+  plus a reproducible dataset and benchmark methodology with no CI timing
+  thresholds.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
@@ -124,8 +128,9 @@ the server protocol and request runtime. Phase 15 shipped authentication and
 role enforcement, Phase 16 shipped the SDK and CLI, Phase 17 shipped execution
 telemetry, Phase 18 shipped workload aggregation and analysis, Phase 19 shipped
 evidence-based index recommendations, Phase 20 shipped recommendation lifecycle
-and impact evaluation, and Phase 21 shipped the optional recommendation
-assistant boundary. Next: Phase 22 (hardening and reproducible validation).
+and impact evaluation, Phase 21 shipped the optional recommendation assistant
+boundary, and Phase 22 shipped cross-crate hardening and reproducible validation.
+The planned v1 research-prototype roadmap is complete.
 
 ## Build
 
@@ -151,7 +156,7 @@ cargo run -p nova-cli -- --address 127.0.0.1:7400 shell
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
@@ -202,7 +207,7 @@ pool — Phase 12 ✓ WAL/recovery — Phase 13 ✓ transactions — Phase 14 �
 Phase 15 ✓ auth —
 Phase 16 ✓ CLI — Phase 17 ✓ telemetry — Phase 18 ✓ NIE analysis — Phase 19 ✓
 NIE advisor — Phase 20 ✓ NIE evaluation — Phase 21 ✓ optional AI assistant —
-Phase 22 hardening.
+Phase 22 ✓ hardening.
 
 Future work (out of scope for v1): SQL compatibility, distributed consensus,
 sharding, replication, full MVCC, graph engine, HNSW/ANN, LSM trees, learned

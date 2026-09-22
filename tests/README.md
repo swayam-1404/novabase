@@ -1,12 +1,14 @@
 # Integration tests
 
-Workspace-level integration tests exercising NovaDB end-to-end. Populated
-starting with Phase 4 (storage engine restart persistence).
+Workspace-level hardening tests are compiled as the `nova-integration-tests`
+package and run by `cargo test --workspace`.
 
-Subdirectories are populated by later phases:
+- `integration/` — parser, executor, persistent index, telemetry, advisor,
+  assistant suggestion, lifecycle, and impact evaluation in one workflow
+- `concurrency/` — multi-threaded telemetry recording
+- `fuzz/` — deterministic malformed NBF and NovaQL totality sweeps
 
-- `recovery/` — WAL/crash recovery tests (Phase 12)
-- `corruption/` — checksum/corruption detection tests (Phase 3+)
-- `concurrency/` — locking/concurrency tests (Phase 13)
-- `fuzz/` — NovaQL + NBF fuzz harnesses (Phase 22, harnesses from Phase 2/5)
-- `performance/` — reproducible benchmark-style tests (Phase 10+)
+Recovery, corruption, protocol, authentication, locking, storage, and index
+tests remain colocated with their crates so they can exercise private format
+invariants. Performance methodology is documented separately; CI does not use
+timing thresholds because shared runners are nondeterministic.

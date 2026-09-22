@@ -1,0 +1,20 @@
+[package]
+name = "nova-integration-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+nova-core = { path = "../crates/nova-core", version = "0.1.0" }
+nova-executor = { path = "../crates/nova-executor", version = "0.1.0" }
+nova-intelligence = { path = "../crates/nova-intelligence", version = "0.1.0" }
+nova-nbf = { path = "../crates/nova-nbf", version = "0.1.0" }
+nova-query = { path = "../crates/nova-query", version = "0.1.0" }
+
+[lints]
+workspace = true
