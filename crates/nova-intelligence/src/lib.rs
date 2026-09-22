@@ -10,11 +10,15 @@ use nova_core::error::{NovaError, Result};
 
 mod advisor;
 mod analysis;
+mod assistant;
 mod lifecycle;
 
 pub use advisor::{recommend_indexes, AdvisorConfig, IndexRecommendation, RecommendationEvidence};
 pub use analysis::{
     analyze_workload, FingerprintStats, IndexCandidateStats, PredicatePathStats, WorkloadReport,
+};
+pub use assistant::{
+    explain_recommendation, AssistantExplanation, AssistantLimits, ExplanationProvider,
 };
 pub use lifecycle::{
     EvaluationConfig, ImpactEvaluation, RecommendationLifecycle, RecommendationRecord,

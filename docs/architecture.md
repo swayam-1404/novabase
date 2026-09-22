@@ -106,7 +106,8 @@ Nova Intelligence Engine (nova-intelligence)
 | NIE workload analysis    | nova-intelligence  | shipped  | 18    |
 | NIE index advisor        | nova-intelligence  | shipped  | 19    |
 | NIE impact evaluation    | nova-intelligence  | shipped  | 20    |
-| Optional AI assistant    | nova-intelligence  | planned  | 21    |
+| Optional AI assistant    | nova-intelligence  | shipped  | 21    |
+| Hardening/validation     | workspace          | planned  | 22    |
 
 ## Cargo dependency layering (planned, subject to change)
 

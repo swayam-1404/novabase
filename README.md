@@ -33,7 +33,7 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 
 ## Current status
 
-Implemented through Phase 20 — recommendation lifecycle and evaluation:
+Implemented through Phase 21 — optional recommendation assistant:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
@@ -108,6 +108,9 @@ Implemented through Phase 20 — recommendation lifecycle and evaluation:
 - A human-controlled recommendation lifecycle with validated state transitions
   and post-application evaluation of examined-document and latency changes,
   including explicit regression reporting.
+- A provider-neutral optional assistant that exposes only bounded aggregate
+  evidence, supplies deterministic NovaQL index suggestions, and treats any
+  generated narrative as untrusted display-only text.
 
 Phase 0 shipped the workspace scaffolding, Phase 1 shipped the data model, and
 Phase 2 shipped NBF. Phase 3 shipped page storage, and Phase 4 shipped the first
@@ -120,8 +123,9 @@ Phase 13 shipped transaction states and strict locking, and Phase 14 shipped
 the server protocol and request runtime. Phase 15 shipped authentication and
 role enforcement, Phase 16 shipped the SDK and CLI, Phase 17 shipped execution
 telemetry, Phase 18 shipped workload aggregation and analysis, Phase 19 shipped
-evidence-based index recommendations, and Phase 20 shipped recommendation
-lifecycle and impact evaluation. Next: Phase 21 (optional AI assistant).
+evidence-based index recommendations, Phase 20 shipped recommendation lifecycle
+and impact evaluation, and Phase 21 shipped the optional recommendation
+assistant boundary. Next: Phase 22 (hardening and reproducible validation).
 
 ## Build
 
@@ -197,7 +201,7 @@ Phase 8 ✓ B+ tree — Phase 9 ✓ index integration — Phase 10 ✓ planner �
 pool — Phase 12 ✓ WAL/recovery — Phase 13 ✓ transactions — Phase 14 ✓ server —
 Phase 15 ✓ auth —
 Phase 16 ✓ CLI — Phase 17 ✓ telemetry — Phase 18 ✓ NIE analysis — Phase 19 ✓
-NIE advisor — Phase 20 ✓ NIE evaluation — Phase 21 optional AI assistant —
+NIE advisor — Phase 20 ✓ NIE evaluation — Phase 21 ✓ optional AI assistant —
 Phase 22 hardening.
 
 Future work (out of scope for v1): SQL compatibility, distributed consensus,
