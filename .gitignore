@@ -16,3 +16,9 @@ Thumbs.db
 
 # Rust tooling
 Cargo.lock.orig
+
+# NovaDB Studio frontend/native build output
+/apps/nova-studio/node_modules/
+/apps/nova-studio/dist/
+/apps/nova-studio/src-tauri/target/
+/apps/nova-studio/src-tauri/gen/

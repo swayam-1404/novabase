@@ -1,5 +1,6 @@
 [workspace]
 resolver = "2"
+exclude = ["apps/nova-studio/src-tauri"]
 members = [
     "crates/nova-core",
     "crates/nova-nbf",

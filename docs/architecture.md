@@ -7,11 +7,11 @@ unbuilt features as completed.
 ## Layers
 
 ```
-Applications        (nova-cli, future SDK apps)
+Applications        (nova-cli, NovaDB Studio, SDK apps)
   |
-  +--- CLI (nova-cli) ---------- SDK (nova-client) ---+
-  |                                                    |
-  +------------------ NovaDB Server -------------------+
+  +--- CLI (nova-cli) --- Studio (Tauri) --- SDK (nova-client) ---+
+  |                                                               |
+  +--------------------- NovaDB Server ----------------------------+
                           |
                      Authentication (nova-auth)
                           |
@@ -108,6 +108,14 @@ Nova Intelligence Engine (nova-intelligence)
 | NIE impact evaluation    | nova-intelligence  | shipped  | 20    |
 | Optional AI assistant    | nova-intelligence  | shipped  | 21    |
 | Hardening/validation     | workspace          | shipped  | 22    |
+| Native desktop Studio    | apps/nova-studio   | shipped  | post-v1 |
+
+NovaDB Studio consumes the same `nova-client` TCP boundary as the CLI. Its
+embedded demo mode starts a real `NovaServer<MemoryBackend>` on a loopback
+address for the lifetime of the application; it is intentionally
+non-persistent. Protocol v2 returns display text and has no collection-catalog
+operation, so Studio presents raw server results and user-saved collection
+shortcuts rather than inventing a structured result grid or catalog.
 
 ## Cargo dependency layering (planned, subject to change)
 

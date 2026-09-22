@@ -23,7 +23,7 @@ Engine (NIE)** — a workload-aware index recommendation system.
 See [`docs/architecture.md`](docs/architecture.md). In short:
 
 ```
-CLI / SDK -> NovaDB Server -> Auth -> NovaQL Parser -> AST
+CLI / SDK / Studio -> NovaDB Server -> Auth -> NovaQL Parser -> AST
          -> Semantic Validator -> Query Planner
          -> (CollectionScan | IndexScan -> B+ Tree)
          -> Executor -> Document Engine -> NBF
@@ -36,6 +36,9 @@ Query execution telemetry -> Nova Intelligence Engine (Analyze -> Recommend)
 Implemented through Phase 22 — hardening and reproducible validation:
 
 - Rust workspace with 14 library crates and the `nova` CLI binary.
+- NovaDB Studio, a native desktop NovaQL workspace with remote connection
+  probing, bearer-token sessions, query templates, Explain, session history,
+  saved collection shortcuts, and an embedded in-memory demo server.
 - Formatting (`rustfmt`), linting (Clippy with `all` + `pedantic`,
   `unsafe_code` denied workspace-wide).
 - Structured error conventions (`NovaError`) in `nova-core`.
@@ -152,6 +155,20 @@ cargo run -p nova-cli -- --address 127.0.0.1:7400 shell
 `NOVADB_ADDRESS` and `NOVADB_TOKEN` provide defaults. Command-line
 `--address`/`--token` values override them.
 
+For the native desktop interface (Node.js and the Tauri prerequisites are also
+required):
+
+```powershell
+cd apps\nova-studio
+npm install
+npm run tauri dev
+```
+
+Select **Demo** for a disposable in-memory server, or enter the address and
+optional bearer token of a running NovaDB server. See
+[`apps/nova-studio/README.md`](apps/nova-studio/README.md) for build and
+verification details.
+
 ## Testing
 
 ```sh
@@ -192,6 +209,7 @@ crates/
   nova-server        Server (Phase 14)
   nova-client        SDK
 cli/nova-cli         CLI (Phase 16)
+apps/nova-studio     Native NovaQL desktop interface
 tests/               integration, recovery, corruption, concurrency, fuzz, perf
 benchmarks/          reproducible benchmarks
 datasets/            reproducible datasets
