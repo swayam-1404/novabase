@@ -163,10 +163,19 @@ dependencies = [
 [[package]]
 name = "nova-cli"
 version = "0.1.0"
+dependencies = [
+ "nova-client",
+ "nova-core",
+]
 
 [[package]]
 name = "nova-client"
 version = "0.1.0"
+dependencies = [
+ "nova-core",
+ "nova-executor",
+ "nova-server",
+]
 
 [[package]]
 name = "nova-core"

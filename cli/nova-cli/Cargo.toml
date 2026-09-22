@@ -11,6 +11,8 @@ name = "nova"
 path = "src/main.rs"
 
 [dependencies]
+nova-client = { path = "../../crates/nova-client", version = "0.1.0" }
+nova-core = { path = "../../crates/nova-core", version = "0.1.0" }
 
 [lints]
 workspace = true
