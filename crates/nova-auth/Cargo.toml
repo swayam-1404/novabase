@@ -7,6 +7,9 @@ rust-version.workspace = true
 description = "Roles, authentication and deterministic authorization for NovaDB"
 
 [dependencies]
+argon2 = { version = "0.5", features = ["std"] }
+getrandom.workspace = true
+nova-core = { path = "../nova-core", version = "0.1.0" }
 
 [lints]
 workspace = true

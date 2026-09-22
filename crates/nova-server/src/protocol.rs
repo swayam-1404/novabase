@@ -4,7 +4,7 @@ use nova_core::error::{NovaError, Result};
 
 const REQUEST_MAGIC: [u8; 4] = *b"NVRQ";
 const RESPONSE_MAGIC: [u8; 4] = *b"NVRS";
-const VERSION: u16 = 1;
+const VERSION: u16 = 2;
 const HEADER_SIZE: usize = 24;
 const CHECKSUM_OFFSET: usize = 20;
 
@@ -12,6 +12,7 @@ const CHECKSUM_OFFSET: usize = 20;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Request {
     pub request_id: u64,
+    pub auth_token: Option<String>,
     pub query: String,
 }
 
@@ -24,6 +25,8 @@ pub enum ErrorCode {
     Execution = 3,
     Busy = 4,
     Internal = 5,
+    Authentication = 6,
+    Authorization = 7,
 }
 
 /// One server response, correlated by request id.
@@ -38,12 +41,20 @@ pub struct Response {
 /// # Errors
 /// Returns a typed error if the query length exceeds the wire representation.
 pub fn encode_request(request: &Request) -> Result<Vec<u8>> {
-    encode_frame(
-        REQUEST_MAGIC,
-        0,
-        request.request_id,
-        request.query.as_bytes(),
-    )
+    let mut payload = Vec::new();
+    match &request.auth_token {
+        Some(token) => {
+            payload.extend_from_slice(
+                &u32::try_from(token.len())
+                    .map_err(size_error)?
+                    .to_be_bytes(),
+            );
+            payload.extend_from_slice(token.as_bytes());
+        }
+        None => payload.extend_from_slice(&u32::MAX.to_be_bytes()),
+    }
+    payload.extend_from_slice(request.query.as_bytes());
+    encode_frame(REQUEST_MAGIC, 0, request.request_id, &payload)
 }
 
 /// Decodes one request from a reader with a configured payload limit.
@@ -55,9 +66,31 @@ pub fn read_request(reader: &mut impl Read, maximum: usize) -> Result<Request> {
     if status != 0 {
         return corruption("request status byte must be zero");
     }
-    let query = String::from_utf8(payload)
+    if payload.len() < 4 {
+        return corruption("request authentication envelope is truncated");
+    }
+    let token_length = u32::from_be_bytes(payload[..4].try_into().map_err(fixed_error)?);
+    let (auth_token, query_bytes) = if token_length == u32::MAX {
+        (None, &payload[4..])
+    } else {
+        let token_length = usize::try_from(token_length).map_err(size_error)?;
+        let token_end = 4_usize
+            .checked_add(token_length)
+            .ok_or_else(|| NovaError::Corruption("request token length overflow".to_owned()))?;
+        let token_bytes = payload
+            .get(4..token_end)
+            .ok_or_else(|| NovaError::Corruption("request token is truncated".to_owned()))?;
+        let token = std::str::from_utf8(token_bytes)
+            .map_err(|_| NovaError::InvalidArgument("request token is not UTF-8".to_owned()))?;
+        (Some(token.to_owned()), &payload[token_end..])
+    };
+    let query = String::from_utf8(query_bytes.to_vec())
         .map_err(|_| NovaError::InvalidArgument("request query is not UTF-8".to_owned()))?;
-    Ok(Request { request_id, query })
+    Ok(Request {
+        request_id,
+        auth_token,
+        query,
+    })
 }
 
 /// Writes one response frame.
@@ -96,6 +129,8 @@ pub fn read_response(reader: &mut impl Read, maximum: usize) -> Result<Response>
             3 => ErrorCode::Execution,
             4 => ErrorCode::Busy,
             5 => ErrorCode::Internal,
+            6 => ErrorCode::Authentication,
+            7 => ErrorCode::Authorization,
             other => return corruption(&format!("unknown response status {other}")),
         };
         Err((code, text))
