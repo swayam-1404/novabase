@@ -12,5 +12,5 @@ mod executor;
 mod indexed;
 
 pub use backend::{ExecutionBackend, MemoryBackend};
-pub use executor::{execute, ExecutionResult};
+pub use executor::{execute, execute_with_telemetry, ExecutionResult};
 pub use indexed::IndexedBackend;

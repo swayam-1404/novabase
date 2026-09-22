@@ -1,11 +1,16 @@
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use std::time::Instant;
 
 use nova_core::document::Document;
 use nova_core::error::{NovaError, Result};
 use nova_core::nova_id::NovaId;
 use nova_core::nova_value::NovaValue;
+use nova_intelligence::{TelemetryAccess, TelemetryEvent, TelemetrySink};
 use nova_planner::{plan, AccessPath, QueryPlan};
-use nova_query::{Assignment, Command, ExpressionKind, Path, Query, SortDirection, SortKey, Stage};
+use nova_query::{
+    Assignment, Command, Expression, ExpressionKind, Path, Query, SortDirection, SortKey, Stage,
+};
 
 use crate::backend::ExecutionBackend;
 use crate::evaluate::{
@@ -47,16 +52,57 @@ pub enum ExecutionResult {
 /// runtime types, arithmetic, unsupported stage/command combinations, or
 /// attempts to store a missing value.
 pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<ExecutionResult> {
+    execute_internal(query, backend, None)
+}
+
+/// Executes a query while emitting one best-effort, literal-free observation.
+///
+/// # Errors
+/// Returns the same typed errors as [`execute`]. Telemetry recording cannot
+/// change the returned result.
+pub fn execute_with_telemetry(
+    query: &Query,
+    backend: &mut impl ExecutionBackend,
+    sink: &dyn TelemetrySink,
+) -> Result<ExecutionResult> {
+    execute_internal(query, backend, Some(sink))
+}
+
+fn execute_internal(
+    query: &Query,
+    backend: &mut impl ExecutionBackend,
+    sink: Option<&dyn TelemetrySink>,
+) -> Result<ExecutionResult> {
+    let started = Instant::now();
     let physical_plan = plan(query, &backend.index_definitions());
+    let mut examined = 0;
+    let result = execute_planned(query, backend, &physical_plan, &mut examined);
+    if let Some(sink) = sink {
+        sink.record(build_event(
+            query,
+            &physical_plan,
+            examined,
+            &result,
+            started.elapsed().as_micros(),
+        ));
+    }
+    result
+}
+
+fn execute_planned(
+    query: &Query,
+    backend: &mut impl ExecutionBackend,
+    physical_plan: &QueryPlan,
+    examined: &mut usize,
+) -> Result<ExecutionResult> {
     if query.explain {
         return Ok(ExecutionResult::Explained(physical_plan.to_string()));
     }
-
     match &query.command {
         Command::Get { collection } => {
             validate_stages(&query.stages, CommandKind::Get)?;
             let documents = run_pipeline(
-                access_documents(backend, &physical_plan, collection)?,
+                access_documents(backend, physical_plan, collection, examined)?,
                 &query.stages,
             )?;
             Ok(ExecutionResult::Documents(documents))
@@ -83,7 +129,7 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
         Command::Update { collection } => {
             validate_stages(&query.stages, CommandKind::Update)?;
             let documents = run_pipeline(
-                access_documents(backend, &physical_plan, collection)?,
+                access_documents(backend, physical_plan, collection, examined)?,
                 &query.stages,
             )?;
             let count = documents.len();
@@ -95,7 +141,7 @@ pub fn execute(query: &Query, backend: &mut impl ExecutionBackend) -> Result<Exe
         Command::Delete { collection } => {
             validate_stages(&query.stages, CommandKind::Delete)?;
             let documents = run_pipeline(
-                access_documents(backend, &physical_plan, collection)?,
+                access_documents(backend, physical_plan, collection, examined)?,
                 &query.stages,
             )?;
             let count = documents.len();
@@ -136,13 +182,130 @@ fn access_documents(
     backend: &mut impl ExecutionBackend,
     physical_plan: &QueryPlan,
     collection: &str,
+    examined: &mut usize,
 ) -> Result<Vec<Document>> {
-    match &physical_plan.access {
+    let documents = match &physical_plan.access {
         AccessPath::IndexScan { index, key, .. } => backend.scan_index(collection, index, key),
         AccessPath::CollectionScan { .. } => backend.scan(collection),
         AccessPath::Command => Err(NovaError::Internal(
             "data command received command-only plan".to_owned(),
         )),
+    }?;
+    *examined = documents.len();
+    Ok(documents)
+}
+
+fn build_event(
+    query: &Query,
+    physical_plan: &QueryPlan,
+    examined: usize,
+    result: &Result<ExecutionResult>,
+    elapsed_micros: u128,
+) -> TelemetryEvent {
+    let returned = result.as_ref().map_or(0, result_count);
+    let access = match &physical_plan.access {
+        AccessPath::Command => TelemetryAccess::Command,
+        AccessPath::CollectionScan { .. } => TelemetryAccess::CollectionScan,
+        AccessPath::IndexScan { index, .. } => TelemetryAccess::IndexScan {
+            index: index.clone(),
+        },
+    };
+    TelemetryEvent {
+        fingerprint: fingerprint(query),
+        collection: command_collection(&query.command).map(str::to_owned),
+        predicate_paths: predicate_paths(&query.stages),
+        access,
+        examined,
+        returned,
+        elapsed_micros: u64::try_from(elapsed_micros).unwrap_or(u64::MAX),
+        succeeded: result.is_ok(),
+    }
+}
+
+fn result_count(result: &ExecutionResult) -> usize {
+    match result {
+        ExecutionResult::Documents(documents) => documents.len(),
+        ExecutionResult::Inserted(_) => 1,
+        ExecutionResult::Updated(count) | ExecutionResult::Deleted(count) => *count,
+        ExecutionResult::CollectionCreated(_)
+        | ExecutionResult::CollectionDropped(_)
+        | ExecutionResult::IndexCreated(_)
+        | ExecutionResult::IndexDropped(_)
+        | ExecutionResult::Explained(_) => 0,
+    }
+}
+
+fn fingerprint(query: &Query) -> String {
+    let command = match &query.command {
+        Command::Get { collection } => format!("get:{collection}"),
+        Command::Insert { collection, .. } => format!("insert:{collection}"),
+        Command::Update { collection } => format!("update:{collection}"),
+        Command::Delete { collection } => format!("delete:{collection}"),
+        Command::CreateCollection { .. } => "create_collection".to_owned(),
+        Command::DropCollection { .. } => "drop_collection".to_owned(),
+        Command::CreateIndex { .. } => "create_index".to_owned(),
+        Command::DropIndex { .. } => "drop_index".to_owned(),
+    };
+    query.stages.iter().fold(command, |mut value, stage| {
+        let name = match stage {
+            Stage::Filter(_) => "filter",
+            Stage::Project(_) => "project",
+            Stage::Sort(_) => "sort",
+            Stage::Limit(_) => "limit",
+            Stage::Skip(_) => "skip",
+            Stage::Set(_) => "set",
+        };
+        value.push('|');
+        value.push_str(name);
+        value
+    })
+}
+
+fn command_collection(command: &Command) -> Option<&str> {
+    match command {
+        Command::Get { collection }
+        | Command::Insert { collection, .. }
+        | Command::Update { collection }
+        | Command::Delete { collection }
+        | Command::CreateIndex { collection, .. } => Some(collection),
+        Command::CreateCollection { .. }
+        | Command::DropCollection { .. }
+        | Command::DropIndex { .. } => None,
+    }
+}
+
+fn predicate_paths(stages: &[Stage]) -> Vec<String> {
+    let mut paths = BTreeSet::new();
+    for expression in stages.iter().filter_map(|stage| match stage {
+        Stage::Filter(expression) => Some(expression),
+        _ => None,
+    }) {
+        collect_paths(expression, &mut paths);
+    }
+    paths.into_iter().collect()
+}
+
+fn collect_paths(expression: &Expression, paths: &mut BTreeSet<String>) {
+    match &expression.kind {
+        ExpressionKind::Path(path) => {
+            paths.insert(path.segments.join("."));
+        }
+        ExpressionKind::Array(values) => {
+            for value in values {
+                collect_paths(value, paths);
+            }
+        }
+        ExpressionKind::Object(fields) => {
+            for field in fields {
+                collect_paths(&field.value, paths);
+            }
+        }
+        ExpressionKind::Unary { operand, .. } => collect_paths(operand, paths),
+        ExpressionKind::Binary { left, right, .. } => {
+            collect_paths(left, paths);
+            collect_paths(right, paths);
+        }
+        ExpressionKind::Literal(_) => {}
     }
 }
 
@@ -356,6 +519,7 @@ mod tests {
 
     use nova_core::nova_timestamp::NovaTimestamp;
     use nova_index::IndexKey;
+    use nova_intelligence::{InMemoryTelemetry, TelemetryAccess};
     use nova_query::parse;
 
     use super::*;
@@ -629,5 +793,24 @@ mod tests {
             Err(NovaError::AlreadyExists(_))
         ));
         assert_eq!(backend.scan("students").unwrap(), vec![original]);
+    }
+
+    #[test]
+    fn telemetry_is_literal_free_and_observes_success_and_failure() {
+        let sink = InMemoryTelemetry::new();
+        let mut backend = seeded_backend();
+        let query = parse("students.get { score >= 80 } | limit 1").unwrap();
+        execute_with_telemetry(&query, &mut backend, &sink).unwrap();
+        let bad = parse("students.get { score }").unwrap();
+        assert!(execute_with_telemetry(&bad, &mut backend, &sink).is_err());
+        let events = sink.snapshot().unwrap();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].fingerprint, "get:students|filter|limit");
+        assert!(!events[0].fingerprint.contains("80"));
+        assert_eq!(events[0].predicate_paths, ["score"]);
+        assert_eq!(events[0].access, TelemetryAccess::CollectionScan);
+        assert_eq!((events[0].examined, events[0].returned), (4, 1));
+        assert!(events[0].succeeded);
+        assert!(!events[1].succeeded);
     }
 }

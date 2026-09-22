@@ -7,6 +7,7 @@ rust-version.workspace = true
 description = "Nova Intelligence Engine (NIE): workload telemetry analysis and evidence-based index recommendations"
 
 [dependencies]
+nova-core = { path = "../nova-core", version = "0.1.0" }
 
 [lints]
 workspace = true

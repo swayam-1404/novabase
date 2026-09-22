@@ -102,7 +102,8 @@ Nova Intelligence Engine (nova-intelligence)
 | Server                   | nova-server        | shipped  | 14    |
 | Auth                     | nova-auth          | shipped  | 15    |
 | CLI + client SDK         | nova-cli/client    | shipped  | 16    |
-| Telemetry + NIE          | nova-intelligence  | planned  | 17-20 |
+| Telemetry                | nova-intelligence  | shipped  | 17    |
+| NIE analysis/advisor     | nova-intelligence  | planned  | 18-20 |
 
 ## Cargo dependency layering (planned, subject to change)
 
